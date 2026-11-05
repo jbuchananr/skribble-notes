@@ -3,11 +3,13 @@ import type { GraphNode, Note } from '../../shared/types'
 import { Home, type HomeView } from './components/Home'
 import { Editor } from './components/Editor'
 import { Absorb } from './components/Absorb'
+import { WikiPageView } from './components/WikiPage'
+import { Settings } from './components/Settings'
 import { ImportModal } from './components/ImportModal'
 import { newNote, htmlToText } from './lib/notes'
 import { inbox } from '../../core/inbox'
 
-type Mode = { kind: 'home' } | { kind: 'edit'; id: string; section?: string } | { kind: 'absorb'; nodeId: string; from: 'inbox' | 'edit' }
+type Mode = { kind: 'home' } | { kind: 'edit'; id: string; section?: string } | { kind: 'absorb'; nodeId: string; from: 'inbox' | 'edit' } | { kind: 'wiki'; slug: string }
 
 export default function App() {
   const [notes, setNotes] = useState<Note[]>([])
@@ -17,6 +19,7 @@ export default function App() {
   const [saving, setSaving] = useState(false)
   const [graph, setGraph] = useState<GraphNode[]>([])
   const [importing, setImporting] = useState(false)
+  const [settings, setSettings] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
 
@@ -89,6 +92,13 @@ export default function App() {
   }, [mode, notes, deleteNote])
 
   const openNote = useCallback((id: string, section?: string) => setMode({ kind: 'edit', id, section }), [])
+  const openPage = useCallback((slug: string) => setMode({ kind: 'wiki', slug }), [])
+  /** "Note Title#Section" from a wiki citation */
+  const openSource = useCallback((ref: string) => {
+    const [title, section] = ref.split('#')
+    const n = notes.find((x) => x.title.trim().toLowerCase() === title.trim().toLowerCase())
+    if (n) setMode({ kind: 'edit', id: n.id, section: section?.trim() || undefined })
+  }, [notes])
   const absorbNode = useCallback((node: GraphNode, from: 'inbox' | 'edit' = 'inbox') => setMode({ kind: 'absorb', nodeId: node.id, from }), [])
 
   // Menu / keyboard actions from the main process
@@ -103,6 +113,7 @@ export default function App() {
         case 'view-brain': setMode({ kind: 'home' }); setView('brain'); break
         case 'view-all': setMode({ kind: 'home' }); setView('all'); break
         case 'import-apple': setImporting(true); break
+        case 'settings': setSettings(true); break
       }
     })
   }, [createNote, deleteNote, goHome, mode])
@@ -115,7 +126,16 @@ export default function App() {
   }, [mode, goHome])
 
   const queue = useMemo(() => inbox(graph), [graph])
-  const importModal = importing && <ImportModal onClose={() => setImporting(false)} onDone={(n) => { setImporting(false); reload(); if (n) alert(`Imported ${n} note${n === 1 ? '' : 's'} from Apple Notes.`) }} />
+  const overlays = <>{importing && <ImportModal onClose={() => setImporting(false)} onDone={(n) => { setImporting(false); reload(); if (n) alert(`Imported ${n} note${n === 1 ? '' : 's'} from Apple Notes.`) }} />}{settings && <Settings onClose={() => setSettings(false)} />}</>
+
+  if (mode.kind === 'wiki') {
+    return (
+      <>
+      {overlays}
+      <WikiPageView slug={mode.slug} onBack={() => setMode({ kind: 'home' })} onOpenSource={openSource} onOpenPage={openPage} />
+      </>
+    )
+  }
 
   if (mode.kind === 'absorb') {
     const node = graph.find((g) => g.id === mode.nodeId)
@@ -126,7 +146,7 @@ export default function App() {
       const back = () => (mode.from === 'edit' ? setMode({ kind: 'edit', id: note.id, section: node.section }) : setMode({ kind: 'home' }))
       return (
         <>
-        {importModal}
+        {overlays}
         <Absorb
           key={node.id}
           note={note}
@@ -155,7 +175,7 @@ export default function App() {
     if (open) {
       return (
         <>
-        {importModal}
+        {overlays}
         <Editor
           key={open.id}
           note={open}
@@ -177,7 +197,7 @@ export default function App() {
 
   return (
     <>
-    {importModal}
+    {overlays}
     <Home
       ref={searchRef}
       notes={notes}
@@ -188,6 +208,8 @@ export default function App() {
       setQuery={setQuery}
       onAbsorb={(node) => absorbNode(node, 'inbox')}
       onOpen={openNote}
+      onOpenPage={openPage}
+      onSettings={() => setSettings(true)}
       onNew={createNote}
     />
     </>

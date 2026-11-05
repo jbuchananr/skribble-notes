@@ -23,6 +23,12 @@ const api: NotesApi = {
   aiSuggest: (req: SuggestRequest) => ipcRenderer.invoke('ai:suggest', req),
   aiAsk: (req: AskRequest) => ipcRenderer.invoke('ai:ask', req),
   absorb: (req: AbsorbRequest) => ipcRenderer.invoke('notes:absorb', req),
+  wikiPages: () => ipcRenderer.invoke('wiki:pages'),
+  wikiPage: (slug: string) => ipcRenderer.invoke('wiki:page', slug),
+  wikiStatus: () => ipcRenderer.invoke('wiki:status'),
+  wikiRebuild: (force?: boolean) => ipcRenderer.invoke('wiki:rebuild', force),
+  wikiLog: () => ipcRenderer.invoke('wiki:log'),
+  onWikiChanged: on('wiki-changed'),
   onMenu: on('menu'),
   onNotesChanged: on('notes-changed')
 }

@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, Menu, nativeTheme } from 'electron'
 import { join } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import type { Note, Template, AppleNoteSummary, AiStatus, SuggestRequest, AbsorbRequest, AskRequest } from '../shared/types'
+import type { Note, Template, AppleNoteSummary, AiStatus, SuggestRequest, AbsorbRequest, AskRequest, WikiStatus } from '../shared/types'
 import { NOTES_DIR } from '../core/paths'
 import * as store from '../core/store'
 import { buildGraph } from '../core/graph'
@@ -12,7 +12,12 @@ import { readAiConfig, writeAiConfig } from '../core/ai/config'
 import { suggestConnections } from '../core/ai/suggest'
 import { ask } from '../core/ai/ask'
 import { addInsight } from '../core/insights'
-import { setAbsorbed, today } from '../core/absorb'
+import { setAbsorbed, today, getAbsorbed } from '../core/absorb'
+import * as wiki from '../core/wiki'
+import { ingest, sourceRef } from '../core/ai/wiki'
+import { buildGraph as graphOf } from '../core/graph'
+import { isUnit } from '../core/inbox'
+import type { StoredNote } from '../core/store'
 
 const run = promisify(execFile)
 
@@ -37,7 +42,77 @@ async function absorb(req: AbsorbRequest): Promise<Note> {
   const saved = await store.writeStored({ ...n, absorbed, updatedAt: Date.now() })
   if (req.insight?.trim()) await addInsight({ text: req.insight, noteTitle: n.title || 'Untitled', section: req.section })
   send('notes-changed')
+  // fold it into the wiki in the background; absorbing itself never waits on the model
+  queueIngest({ note: saved, section: req.section, insight: req.insight?.trim() || undefined })
   return store.toNote(saved)
+}
+
+// ---------- wiki: a queue of absorbed units to fold in, one model call at a time ----------
+type Job = { note: StoredNote; section?: string; insight?: string }
+const jobs: Job[] = []
+let wikiBusy = false
+let wikiError: string | undefined
+
+function queueIngest(job: Job) {
+  if (!jobs.some((j) => j.note.id === job.note.id && (j.section ?? '') === (job.section ?? ''))) jobs.push(job)
+  void drainIngest()
+}
+
+async function drainIngest() {
+  if (wikiBusy) return
+  const cfg = await readAiConfig()
+  if (!cfg) { jobs.length = 0; return }
+  wikiBusy = true
+  send('wiki-changed')
+  try {
+    while (jobs.length) {
+      const job = jobs.shift()!
+      const fresh = (await store.readStored(job.note.id)) ?? job.note
+      const entry = getAbsorbed(fresh.absorbed, job.section)
+      if (!entry) continue
+      try {
+        await ingest({ note: fresh, section: job.section, entry, insight: job.insight }, cfg)
+        await wiki.markIngested(sourceRef(fresh, job.section))
+        wikiError = undefined
+      } catch (e) {
+        wikiError = (e as Error).message
+        console.error('wiki ingest failed', sourceRef(fresh, job.section), wikiError)
+      }
+      send('wiki-changed')
+    }
+  } finally {
+    wikiBusy = false
+    send('wiki-changed')
+  }
+}
+
+/** Absorbed units the wiki has not folded in yet. */
+async function pendingIngests(): Promise<Job[]> {
+  const notes = await store.listStored()
+  const graph = graphOf(notes)
+  const done = await wiki.readIngested()
+  const out: Job[] = []
+  for (const n of notes) {
+    for (const a of n.absorbed) {
+      const node = graph.find((g) => g.noteId === n.id && (a.section ? g.section === a.section : g.level === 0))
+      if (!node || !isUnit(node, graph)) continue
+      const ref = sourceRef(n, a.section)
+      if (!done[ref]) out.push({ note: n, section: a.section })
+    }
+  }
+  return out
+}
+
+async function wikiStatus(): Promise<WikiStatus> {
+  return { pending: (await pendingIngests()).length + jobs.length, busy: wikiBusy, lastError: wikiError }
+}
+
+async function wikiRebuild(force: boolean): Promise<number> {
+  if (force) await wiki.clearIngested()
+  const pending = await pendingIngests()
+  for (const j of pending) queueIngest(j)
+  if (pending.length) await wiki.appendLog('rebuild', `${pending.length} unit(s) queued${force ? ' (forced)' : ''}`)
+  return pending.length
 }
 
 async function aiConfig() {
@@ -130,7 +205,7 @@ function createWindow() {
 
 function buildMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
-    { role: 'appMenu' },
+    { label: app.name, submenu: [{ role: 'about' }, { type: 'separator' }, { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => send('menu', 'settings') }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] },
     {
       label: 'File',
       submenu: [
@@ -140,6 +215,10 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Import from Apple Notes…', click: () => send('menu', 'import-apple') },
         { label: 'Reveal Notes Folder', click: () => shell.openPath(NOTES_DIR) },
+        { label: 'Reveal Wiki Folder', click: () => shell.openPath(wiki.WIKI_DIR) },
+        { type: 'separator' },
+        { label: 'Update Wiki (absorbed but not yet in wiki)', click: () => wikiRebuild(false) },
+        { label: 'Rebuild Wiki From Scratch…', click: () => { if (win) { const { dialog } = require('electron'); const r = dialog.showMessageBoxSync(win, { type: 'question', buttons: ['Cancel', 'Rebuild'], defaultId: 1, message: 'Re-ingest every absorbed section into the wiki? Existing pages are extended, not deleted.' }); if (r === 1) wikiRebuild(true) } } },
         { type: 'separator' },
         { role: 'close' }
       ]
@@ -150,7 +229,7 @@ function buildMenu() {
       submenu: [
         { label: 'Search', accelerator: 'CmdOrCtrl+F', click: () => send('menu', 'focus-search') },
         { label: 'Notes', accelerator: 'CmdOrCtrl+1', click: () => send('menu', 'view-inbox') },
-        { label: 'Brain', accelerator: 'CmdOrCtrl+2', click: () => send('menu', 'view-brain') },
+        { label: 'Wiki', accelerator: 'CmdOrCtrl+2', click: () => send('menu', 'view-brain') },
         { label: 'All', accelerator: 'CmdOrCtrl+3', click: () => send('menu', 'view-all') },
         { label: 'Back to Notes', accelerator: 'CmdOrCtrl+[', click: () => send('menu', 'go-home') },
         { type: 'separator' },
@@ -170,6 +249,9 @@ app.whenReady().then(async () => {
   await store.ensureNotesDir()
   await templates.ensureTemplates()
   const migrated = await store.migrateMarkers()
+  await wiki.ensureWiki()
+  // catch up on anything absorbed while no key was configured or the app was closed
+  setTimeout(() => { wikiRebuild(false).catch((e) => console.error('wiki catch-up failed', e)) }, 3000)
   if (migrated) console.log(`moved absorb markers into frontmatter for ${migrated} note(s)`)
 
   ipcMain.handle('notes:list', () => listNotes())
@@ -181,9 +263,21 @@ app.whenReady().then(async () => {
   ipcMain.handle('templates:save', (_e, t: Template) => templates.saveTemplate(t))
   ipcMain.handle('templates:delete', (_e, name: string) => templates.deleteTemplate(name))
   ipcMain.handle('ai:status', async (): Promise<AiStatus> => { const c = await readAiConfig(); return { configured: !!c, model: c?.model } })
-  ipcMain.handle('ai:configure', async (_e, cfg: { apiKey: string; model?: string }): Promise<AiStatus> => { await writeAiConfig(cfg); const c = await readAiConfig(); return { configured: !!c, model: c?.model } })
+  ipcMain.handle('ai:configure', async (_e, cfg: { apiKey: string; model?: string }): Promise<AiStatus> => {
+    const prev = await readAiConfig()
+    const apiKey = cfg.apiKey === '__keep__' && prev ? prev.apiKey : cfg.apiKey
+    await writeAiConfig({ apiKey, model: cfg.model })
+    const c = await readAiConfig()
+    if (c) setTimeout(() => { wikiRebuild(false).catch(() => undefined) }, 500)
+    return { configured: !!c, model: c?.model }
+  })
   ipcMain.handle('ai:suggest', async (_e, req: SuggestRequest) => { const cfg = await aiConfig(); return suggestConnections(req, await store.listStored(), cfg) })
-  ipcMain.handle('ai:ask', async (_e, req: AskRequest) => { const cfg = await aiConfig(); return ask(req, await store.listStored(), cfg) })
+  ipcMain.handle('ai:ask', async (_e, req: AskRequest) => { const cfg = await aiConfig(); return ask(req, await store.listStored(), await wiki.listPages(), cfg) })
+  ipcMain.handle('wiki:pages', () => wiki.listPages())
+  ipcMain.handle('wiki:page', (_e, slug: string) => wiki.readPage(slug))
+  ipcMain.handle('wiki:status', () => wikiStatus())
+  ipcMain.handle('wiki:rebuild', (_e, force?: boolean) => wikiRebuild(!!force))
+  ipcMain.handle('wiki:log', () => wiki.readLog())
   ipcMain.handle('notes:absorb', (_e, req: AbsorbRequest) => absorb(req))
   ipcMain.handle('apple:list', () => appleNotesList())
   ipcMain.handle('apple:import', (_e, ids: string[]) => appleNotesImport(ids))

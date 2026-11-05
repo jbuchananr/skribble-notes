@@ -1,8 +1,8 @@
 # Skribble
 
-A personal, local-first notes app for moving what you write into what you know. Notes are plain markdown files. You write freely; every section you write sits under **Notes** until you **absorb** it: you type the takeaway in your own words, keep the connections that fit, and it moves into your **Brain**. The brain is searchable and you can chat with it. An MCP server lets other agents do the same.
+A personal, local-first notes app for moving what you write into what you know. Notes are plain markdown files. You write freely; every section you write sits under **Notes** until you **absorb** it: you type the takeaway in your own words and keep the connections that fit. Absorbed sections feed a **Wiki**: a folder of derived pages (people, projects, concepts, topics, decisions) the agent maintains from your notes, in the spirit of [Karpathy's LLM wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). You can search the wiki and chat with it. An MCP server lets other agents do the same.
 
-The model never writes your notes. It proposes connections, you decide; it points at a sentence of yours as a prompt, you type the takeaway.
+Three layers, as in that pattern: your notes are the raw sources and are never edited by the model; the wiki is the model's, derived only from what you absorbed; `wiki/WIKI.md` is the schema you both follow. The model proposes connections, you decide; it points at a sentence of yours as a prompt, you type the takeaway.
 
 ## Run
 
@@ -30,7 +30,7 @@ To use the same notes on another machine, put `~/Notes` in a synced folder (or a
    ```
 
    The takeaway becomes a card in your **Insights** note (one `###` heading per card, linking back to the source), so each insight is its own node in the graph.
-4. **Brain.** Absorbed sections and insight cards, with search and a chat box that answers only from them, with citations you can click. Notes you haven't absorbed are never used for answers.
+4. **Wiki.** After each absorb, the agent folds the section and your takeaway into `~/Notes/wiki/`: it extends or creates pages under `wiki/pages/`, regenerates `wiki/index.md`, and appends to `wiki/log.md`. This runs in the background; absorbing never waits on the model. The Wiki tab lists pages by kind, then absorbed sections and insight cards, with search and a chat box that answers only from them, with citations you can click. Notes you haven't absorbed are never used for answers. Settings (⌘,) shows how many absorbed sections are waiting and lets you update or rebuild the wiki.
 
 ## Shortcuts
 
@@ -39,7 +39,8 @@ To use the same notes on another machine, put `~/Notes` in a synced folder (or a
 | New note | ⌘N |
 | Delete note | ⌘⌫ |
 | Search | ⌘F |
-| Notes / Brain / All | ⌘1 / ⌘2 / ⌘3 |
+| Notes / Wiki / All | ⌘1 / ⌘2 / ⌘3 |
+| Settings | ⌘, |
 | Back | ⌘[ or Esc |
 | Absorb (on the absorb screen) | ⌘↩ |
 | Next / previous to absorb | ⌘J / ⌘K |
@@ -52,7 +53,7 @@ Markdown shortcuts work too: `# ` headings, `- ` bullets, `[ ] ` todos.
 
 ## Where notes live
 
-Each note is a markdown file with frontmatter in `~/Notes` (override with `NOTES_DIR`). Templates are in `~/Notes/.templates/*.md`. File → Reveal Notes Folder opens it in Finder. There are no folders in the app.
+Each note is a markdown file with frontmatter in `~/Notes` (override with `NOTES_DIR`). Templates are in `~/Notes/.templates/*.md`. The wiki is `~/Notes/wiki/` (`WIKI.md`, `index.md`, `log.md`, `pages/*.md`, all plain markdown; `.ingested.json` tracks which absorbed sections are in). File → Reveal Notes Folder / Reveal Wiki Folder open them in Finder. There are no folders in the app itself.
 
 ## Graph
 
@@ -60,7 +61,7 @@ Links: `[[Note]]` or `[[Note#Section]]` in the text, plus the links you keep whe
 
 ## AI
 
-Connections and chat take either a Gemini API key from Google AI Studio (`AIza…`, default model `gemini-3.8-flash`) or an OpenRouter key (`sk-or-v1-…`, default model `google/gemini-3.8-flash`). The app detects which you pasted. Key and model live in `~/.config/skribble/ai.json`; edit `model` there to switch. The app asks for a key the first time you need it. Absorbing works without a key; you just don't get suggested connections.
+Set the key in Settings (⌘,). The wiki, connections and chat take either a Gemini API key from Google AI Studio (`AIza…`, default model `gemini-3.8-flash`) or an OpenRouter key (`sk-or-v1-…`, default model `google/gemini-3.8-flash`). The app detects which you pasted. Key and model live in `~/.config/skribble/ai.json`; edit `model` there to switch. The app asks for a key the first time you need it. Absorbing works without a key; you just don't get suggested connections.
 
 ## MCP server
 
@@ -69,12 +70,12 @@ pnpm build
 claude mcp add skribble -- node /path/to/skribble/out/mcp/server.mjs
 ```
 
-For Claude Desktop, add the same command under `mcpServers` in its config. Tools: `list_notes`, `search_notes`, `read_note`, `read_section`, `create_note`, `update_note`, `append_to_note`, `append_section`, `list_templates`, `get_graph`, `list_inbox` (not yet absorbed), `list_brain`, `search_brain`, `ask_brain`, `suggest_connections`, `absorb`, `add_insight`. The absorb tools follow the same rule as the app: `suggest_connections` proposes, `absorb` records only what the user kept, `add_insight` files words the user wrote.
+For Claude Desktop, add the same command under `mcpServers` in its config. Tools: `list_notes`, `search_notes`, `read_note`, `read_section`, `create_note`, `update_note`, `append_to_note`, `append_section`, `list_templates`, `get_graph`, `list_inbox` (not yet absorbed), `list_absorbed`, `list_wiki`, `read_wiki_page`, `wiki_log`, `search_wiki`, `ask_wiki`, `suggest_connections`, `absorb`, `add_insight`. The absorb tools follow the same rule as the app: `suggest_connections` proposes, `absorb` records only what the user kept and then updates the wiki, `add_insight` files words the user wrote.
 
 ## Layout
 
 - `src/main/` Electron main process: window, menu, IPC, Apple Notes import
 - `src/preload/` the `window.notes` bridge
-- `src/renderer/src/` React UI: `Home` (Notes, Brain with `Ask`, All), `Absorb` screen, `Editor` (TipTap, with heading tags)
-- `src/core/` shared logic: markdown ↔ HTML, store, sections, graph, `absorb`, `inbox`, `insights`, templates, `ai/` (connections agent, ask agent)
+- `src/renderer/src/` React UI: `Home` (Notes, Wiki with `Ask`, All), `Absorb` screen, `WikiPage` reader, `Settings`, `Editor` (TipTap, with heading tags)
+- `src/core/` shared logic: markdown ↔ HTML, store, sections, graph, `absorb`, `inbox`, `insights`, `wiki` (pages, index, log), templates, `ai/` (connections agent, wiki ingest agent, ask agent)
 - `src/mcp/` the stdio MCP server

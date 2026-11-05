@@ -531,3 +531,31 @@ button.primary:disabled { opacity: 0.5; }
 .absorb-btn kbd { display: inline-grid; place-items: center; margin-left: 4px; opacity: 0.7; }
 .absorb-btn kbd svg { width: 13px; height: 13px; }
 .ask-key-block { display: flex; flex-direction: column; gap: 8px; }
+
+/* ---- wiki, settings ---- */
+.page-card .card-title { font-weight: 600; }
+.group h2 svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; }
+.wiki-status { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2); background: var(--bg-hover); border-radius: 10px; padding: 8px 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.wiki-status svg { width: 13px; height: 13px; flex: none; }
+.wiki-status .link { color: var(--accent); text-decoration: underline; }
+.wiki-page { height: 100%; display: flex; flex-direction: column; background: var(--bg); }
+.wiki-page-scroll { flex: 1; overflow-y: auto; }
+.wiki-page-inner { max-width: 720px; margin: 0 auto; padding: 36px 32px 80px; }
+.wiki-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; margin: 6px 0 8px; }
+.wiki-summary { font-size: 15px; color: var(--text-2); margin: 0 0 20px; line-height: 1.5; }
+.wiki-sources { margin-top: 32px; border-top: 1px solid var(--border); padding-top: 14px; display: flex; flex-direction: column; gap: 4px; }
+.wiki-sources h3 { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-3); margin: 0 0 6px; }
+.absorb-crumb svg { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
+.settings-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: grid; place-items: center; z-index: 50; }
+.settings { width: min(560px, 92vw); max-height: 86vh; overflow-y: auto; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px; padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.settings-head { display: flex; align-items: center; justify-content: space-between; }
+.settings-head h2 { margin: 0; font-size: 17px; font-weight: 700; }
+.settings section { display: flex; flex-direction: column; gap: 10px; }
+.settings section h3 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-3); }
+.settings section h3 svg { width: 13px; height: 13px; }
+.settings-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2); }
+.settings-row input { flex: 1; }
+.settings-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.settings-actions .btn-primary svg { width: 14px; height: 14px; }
+.settings-log { font-family: var(--font-mono); font-size: 11px; line-height: 1.5; color: var(--text-3); background: var(--bg); border-radius: 8px; padding: 10px 12px; margin: 0; white-space: pre-wrap; max-height: 180px; overflow-y: auto; }
+.spin { animation: spin 0.9s linear infinite; }

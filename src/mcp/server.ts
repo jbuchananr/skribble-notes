@@ -16,7 +16,9 @@ import { inbox, brain } from '../core/inbox'
 import { addInsight } from '../core/insights'
 import { readAiConfig } from '../core/ai/config'
 import { suggestConnections } from '../core/ai/suggest'
-import { ask, brainPassages, retrieve } from '../core/ai/ask'
+import { ask, wikiPassages, retrieve } from '../core/ai/ask'
+import * as wiki from '../core/wiki'
+import { ingest, sourceRef } from '../core/ai/wiki'
 import { listTemplates, renderTemplate } from '../core/templates'
 import { mdToText } from '../core/markdown'
 import { NOTES_DIR } from '../core/paths'
@@ -180,29 +182,29 @@ server.registerTool('list_inbox', {
   return text(JSON.stringify(q.slice(0, limit).map((n) => ({ note_id: n.noteId, note: n.noteTitle || 'Untitled', section: n.section, date: n.date, preview: n.preview })), null, 2))
 })
 
-server.registerTool('list_brain', {
-  description: 'The brain: absorbed sections and insight cards, most recent first. This is the user\'s settled thinking; prefer it over the inbox when answering questions.',
+server.registerTool('list_absorbed', {
+  description: 'Absorbed sections and insight cards, most recent first. This is the user\'s settled thinking; prefer it over unabsorbed notes when answering questions.',
   inputSchema: { limit: z.number().int().min(1).max(200).default(30) }
 }, async ({ limit }) => {
   const units = brain(buildGraph(await store.listStored()))
   return text(JSON.stringify(units.slice(0, limit).map((n) => ({ node_id: n.id, note_id: n.noteId, note: n.noteTitle || 'Untitled', section: n.section, absorbed: n.absorbed, insight: n.insight || undefined, tags: n.tags, preview: n.preview })), null, 2))
 })
 
-server.registerTool('search_brain', {
-  description: 'Find the absorbed sections and insight cards most relevant to a question, with their full text. Use this to answer from the user\'s settled thinking without calling a model.',
+server.registerTool('search_wiki', {
+  description: 'Find the wiki pages, absorbed sections and insight cards most relevant to a question, with their full text. Use this to answer from the user\'s settled thinking without calling a model.',
   inputSchema: { query: z.string(), limit: z.number().int().min(1).max(20).default(6) }
 }, async ({ query, limit }) => {
-  const hits = retrieve(query, [], brainPassages(await store.listStored()), limit)
-  return text(JSON.stringify(hits.map((p) => ({ node_id: p.id, note_id: p.noteId, label: p.label, absorbed: p.absorbed, text: p.text })), null, 2))
+  const hits = retrieve(query, [], wikiPassages(await store.listStored(), await wiki.listPages()), limit)
+  return text(JSON.stringify(hits.map((p) => ({ id: p.id, kind: p.kind, note_id: p.noteId, page: p.page, label: p.label, updated: p.absorbed, text: p.text })), null, 2))
 })
 
-server.registerTool('ask_brain', {
-  description: 'Ask a question answered only from the user\'s absorbed sections and insight cards, with citations. Needs the API key configured in Skribble.',
+server.registerTool('ask_wiki', {
+  description: 'Ask a question answered only from the user\'s wiki: derived pages, absorbed sections and insight cards, with citations. Needs the API key configured in Skribble.',
   inputSchema: { question: z.string() }
 }, async ({ question }) => {
   const cfg = await readAiConfig()
   if (!cfg) return { ...text('No API key configured in Skribble (~/.config/skribble/ai.json)'), isError: true }
-  const res = await ask({ question, history: [] }, await store.listStored(), cfg)
+  const res = await ask({ question, history: [] }, await store.listStored(), await wiki.listPages(), cfg)
   return text(JSON.stringify(res, null, 2))
 })
 
@@ -235,8 +237,37 @@ server.registerTool('absorb', {
   n.updatedAt = Date.now()
   await store.writeStored(n)
   if (insight?.trim()) await addInsight({ text: insight, noteTitle: n.title || 'Untitled', section })
-  return text(`Absorbed: ${n.title || 'Untitled'}${section ? ' › ' + section : ''}${insight?.trim() ? ' (+ insight card)' : ''}`)
+  let wikiNote = ''
+  const cfg = await readAiConfig()
+  if (cfg) {
+    try {
+      const entry = n.absorbed.find((a) => (a.section ?? '') === (section ?? ''))!
+      const touched = await ingest({ note: n, section, entry, insight: insight?.trim() || undefined }, cfg)
+      await wiki.markIngested(sourceRef(n, section))
+      wikiNote = touched.length ? ` Wiki pages touched: ${touched.join(', ')}.` : ' Wiki: nothing to add.'
+    } catch (e) { wikiNote = ` Wiki update failed: ${(e as Error).message}` }
+  } else wikiNote = ' Wiki not updated (no API key configured).'
+  return text(`Absorbed: ${n.title || 'Untitled'}${section ? ' › ' + section : ''}${insight?.trim() ? ' (+ insight card)' : ''}.${wikiNote}`)
 })
+
+server.registerTool('list_wiki', {
+  description: 'The wiki index: derived pages (people, projects, concepts, topics, decisions) the agent maintains from absorbed notes, each with a one-line summary.',
+  inputSchema: {}
+}, async () => text(JSON.stringify((await wiki.listPages()).map((p) => ({ slug: p.slug, kind: p.kind, title: p.title, summary: p.summary, updated: p.updated, sources: p.sources })), null, 2)))
+
+server.registerTool('read_wiki_page', {
+  description: 'Read one wiki page as markdown, with the note sections it cites.',
+  inputSchema: { slug: z.string() }
+}, async ({ slug }) => {
+  const p = await wiki.readPage(slug)
+  if (!p) return { ...text(`No wiki page "${slug}"`), isError: true }
+  return text(`# ${p.title}\nkind: ${p.kind}\nupdated: ${p.updated}\nsources: ${p.sources.join('; ')}\n\n${p.body}`)
+})
+
+server.registerTool('wiki_log', {
+  description: 'Recent entries from the wiki log (ingests and rebuilds).',
+  inputSchema: { limit: z.number().int().min(1).max(200).default(30) }
+}, async ({ limit }) => text(await wiki.readLog(limit)))
 
 server.registerTool('add_insight', {
   description: 'File a one-sentence takeaway as a card in the Insights note, linking back to the section it came from. The sentence must be the user\'s own words, typed or dictated by them; do not generate it.',
@@ -252,5 +283,6 @@ server.registerTool('list_templates', {
 }, async () => text(JSON.stringify(await listTemplates(), null, 2)))
 
 await store.migrateMarkers()
+await wiki.ensureWiki()
 const transport = new StdioServerTransport()
 await server.connect(transport)

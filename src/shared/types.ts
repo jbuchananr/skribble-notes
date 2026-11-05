@@ -58,6 +58,31 @@ export interface GraphNode {
   insight?: boolean
 }
 
+export type WikiPageKind = 'person' | 'project' | 'concept' | 'topic' | 'decision'
+
+/** A page in the derived wiki (NOTES_DIR/wiki/pages). Written by the agent, never by hand in the app. */
+export interface WikiPage {
+  slug: string
+  title: string
+  kind: WikiPageKind
+  /** one line for the index */
+  summary: string
+  /** "Note Title#Section" refs this page draws on */
+  sources: string[]
+  /** ISO date */
+  updated: string
+  /** markdown */
+  body: string
+}
+
+export interface WikiStatus {
+  /** absorbed units not yet folded into the wiki */
+  pending: number
+  /** a rebuild/ingest is running */
+  busy: boolean
+  lastError?: string
+}
+
 export interface Template {
   name: string
   body: string
@@ -107,7 +132,7 @@ export interface InsightRequest {
   section?: string
 }
 
-/** Chat over the brain: absorbed units and insight cards only. */
+/** Chat over the wiki: its pages, absorbed units and insight cards. The unabsorbed notes are out of scope. */
 export interface AskTurn { role: 'user' | 'assistant'; content: string }
 
 export interface AskRequest {
@@ -116,9 +141,12 @@ export interface AskRequest {
 }
 
 export interface AskSource {
+  /** graph node id, or "wiki:<slug>" for a wiki page */
   nodeId: string
-  noteId: string
+  noteId?: string
   section?: string
+  /** wiki page slug when the source is a page */
+  page?: string
   label: string
 }
 
@@ -144,8 +172,15 @@ export interface NotesApi {
   aiConfigure: (cfg: { apiKey: string; model?: string }) => Promise<AiStatus>
   aiSuggest: (req: SuggestRequest) => Promise<Suggestion>
   aiAsk: (req: AskRequest) => Promise<AskResult>
-  /** absorb a unit; returns the note as re-read from disk */
+  /** absorb a unit; returns the note as re-read from disk. The wiki update runs in the background. */
   absorb: (req: AbsorbRequest) => Promise<Note>
+  wikiPages: () => Promise<WikiPage[]>
+  wikiPage: (slug: string) => Promise<WikiPage | null>
+  wikiStatus: () => Promise<WikiStatus>
+  /** fold every absorbed unit not yet in the wiki (or all of them with force) */
+  wikiRebuild: (force?: boolean) => Promise<number>
+  wikiLog: () => Promise<string>
+  onWikiChanged: (cb: () => void) => () => void
   onMenu: (cb: (action: string) => void) => () => void
   onNotesChanged: (cb: () => void) => () => void
 }
