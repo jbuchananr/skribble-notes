@@ -8,6 +8,7 @@ import { buildGraph, label } from '../graph'
 import { isReviewUnit } from '../review'
 import { unitsOf, tokens, scoreUnit, cut, RELATED_CAP, substance } from './context'
 import { chat, type ChatMessage } from './openrouter'
+import type { AiConfig } from './config'
 
 const MAX_SOURCES = 8
 const INSIGHT_TITLES = new Set(['insights', 'learnings', 'insights & learnings', 'insights and learnings', 'key learnings'])
@@ -80,11 +81,11 @@ export function parseAsk(raw: string, passages: Passage[]): { reply: string; sou
   }
 }
 
-export async function ask(req: AskRequest, notes: StoredNote[], apiKey: string, model: string): Promise<AskResult> {
+export async function ask(req: AskRequest, notes: StoredNote[], cfg: AiConfig): Promise<AskResult> {
   const passages = retrieve(req.question, req.history, publishedPassages(notes))
-  if (!passages.length) return { reply: 'Nothing is reviewed yet. Mark sections reviewed and they become searchable here.', sources: [], model }
-  const raw = await chat(apiKey, model, buildAskMessages(req, passages), { json: true, maxTokens: 900 })
-  return { ...parseAsk(raw, passages), model }
+  if (!passages.length) return { reply: 'Nothing is reviewed yet. Mark sections reviewed and they become searchable here.', sources: [], model: cfg.model }
+  const raw = await chat(cfg, buildAskMessages(req, passages), { json: true, maxTokens: 900 })
+  return { ...parseAsk(raw, passages), model: cfg.model }
 }
 
 export { label }

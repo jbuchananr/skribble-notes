@@ -37,9 +37,9 @@ export function Ask({ onOpen, reviewedCount }: Props) {
   if (status && !status.configured) {
     return (
       <div className="ask">
-        <p className="hint">Chat over your reviewed notes needs an OpenRouter API key. It stays in <code>~/.config/skribble/ai.json</code> on this Mac.</p>
+        <p className="hint">Chat over your reviewed notes needs a Gemini (AI Studio) or OpenRouter API key. It stays in <code>~/.config/skribble/ai.json</code> on this Mac.</p>
         <div className="ask-key">
-          <input className="text-input" type="password" placeholder="sk-or-v1-…" value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} />
+          <input className="text-input" type="password" placeholder="AIza… or sk-or-v1-…" value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} />
           <button className="primary" disabled={!keyDraft.trim()} onClick={async () => setStatus(await window.notes.aiConfigure({ apiKey: keyDraft }))}>Save key</button>
         </div>
       </div>

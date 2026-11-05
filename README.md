@@ -58,7 +58,7 @@ Links: `[[Note]]` or `[[Note#Section]]`. Tags: `#tag`. One graph node per sectio
 
 ## AI
 
-Link suggestions and chat run on OpenRouter. The key and model live in `~/.config/skribble/ai.json` (default model `google/gemini-3.8-flash`). The app asks for a key the first time you use either. Everything works without a key except suggestions and chat.
+Link suggestions and chat take either a Gemini API key from Google AI Studio (`AIza…`, default model `gemini-3.8-flash`) or an OpenRouter key (`sk-or-v1-…`, default model `google/gemini-3.8-flash`). The app detects which you pasted. Key and model live in `~/.config/skribble/ai.json`; edit `model` there to switch. The app asks for a key the first time you use either feature. Everything works without a key except suggestions and chat.
 
 ## MCP server
 

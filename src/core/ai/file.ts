@@ -9,6 +9,7 @@ import { buildGraph } from '../graph'
 import { wikilinkTarget } from '../filing'
 import { unitsOf, relatedSections } from './context'
 import { chat, type ChatMessage } from './openrouter'
+import type { AiConfig } from './config'
 
 const MAX_CANDIDATES = 10
 const SECTION_CAP = 6000
@@ -79,12 +80,12 @@ export function parseFileResult(raw: string, candidates: { id: string; label: st
   return { links, tags, insightQuote: insight || undefined }
 }
 
-export async function suggestFiling(req: FileRequest, notes: StoredNote[], apiKey: string, model: string): Promise<FileResult> {
+export async function suggestFiling(req: FileRequest, notes: StoredNote[], cfg: AiConfig): Promise<FileResult> {
   const { messages, candidates } = buildFileMessages(req, notes)
   // the graph should see the editor's version of this note so links resolve to current headings
   const live = notes.map((n) => (n.id === req.noteId ? { ...n, title: req.title, body: req.body } : n))
   const graph = buildGraph(live)
-  if (!candidates.length) return { links: [], tags: [], context: [], model }
-  const raw = await chat(apiKey, model, messages, { json: true, maxTokens: 800 })
-  return { ...parseFileResult(raw, candidates, graph), context: candidates.map((c) => c.label), model }
+  if (!candidates.length) return { links: [], tags: [], context: [], model: cfg.model }
+  const raw = await chat(cfg, messages, { json: true, maxTokens: 800 })
+  return { ...parseFileResult(raw, candidates, graph), context: candidates.map((c) => c.label), model: cfg.model }
 }

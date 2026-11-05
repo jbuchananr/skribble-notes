@@ -201,8 +201,8 @@ server.registerTool('ask_reviewed', {
   inputSchema: { question: z.string() }
 }, async ({ question }) => {
   const cfg = await readAiConfig()
-  if (!cfg) return { ...text('No OpenRouter key configured in Skribble (~/.config/skribble/ai.json)'), isError: true }
-  const res = await ask({ question, history: [] }, await store.listStored(), cfg.apiKey, cfg.model)
+  if (!cfg) return { ...text('No API key configured in Skribble (~/.config/skribble/ai.json)'), isError: true }
+  const res = await ask({ question, history: [] }, await store.listStored(), cfg)
   return text(JSON.stringify(res, null, 2))
 })
 
@@ -213,8 +213,8 @@ server.registerTool('suggest_filing', {
   const n = await store.readStored(note_id)
   if (!n) return { ...text(`No note ${note_id}`), isError: true }
   const cfg = await readAiConfig()
-  if (!cfg) return { ...text('No OpenRouter key configured in Skribble (~/.config/skribble/ai.json)'), isError: true }
-  const res = await suggestFiling({ noteId: n.id, title: n.title, body: n.body, section }, await store.listStored(), cfg.apiKey, cfg.model)
+  if (!cfg) return { ...text('No API key configured in Skribble (~/.config/skribble/ai.json)'), isError: true }
+  const res = await suggestFiling({ noteId: n.id, title: n.title, body: n.body, section }, await store.listStored(), cfg)
   return text(JSON.stringify({ ...res, existing_links: existingLinks(n.body, section) }, null, 2))
 })
 

@@ -158,9 +158,9 @@ export function FileSection({ note, graph, ops, initialSection }: Props) {
 
       {status && !status.configured && (
         <div className="file-key">
-          <p className="hint">Link suggestions need an OpenRouter key (kept in <code>~/.config/skribble/ai.json</code>). Marking reviewed works without one.</p>
+          <p className="hint">Link suggestions need a Gemini (AI Studio) or OpenRouter key, kept in <code>~/.config/skribble/ai.json</code>. Marking reviewed works without one.</p>
           <div className="ask-key">
-            <input className="text-input" type="password" placeholder="sk-or-v1-…" value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} />
+            <input className="text-input" type="password" placeholder="AIza… or sk-or-v1-…" value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} />
             <button className="primary" disabled={!keyDraft.trim()} onClick={async () => setStatus(await window.notes.aiConfigure({ apiKey: keyDraft }))}>Save</button>
           </div>
         </div>
