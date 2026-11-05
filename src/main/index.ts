@@ -2,16 +2,17 @@ import { app, BrowserWindow, ipcMain, shell, Menu, nativeTheme } from 'electron'
 import { join } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import type { Note, Template, AppleNoteSummary, AiStatus, FileRequest, InsightRequest, AskRequest } from '../shared/types'
+import type { Note, Template, AppleNoteSummary, AiStatus, SuggestRequest, AbsorbRequest, AskRequest } from '../shared/types'
 import { NOTES_DIR } from '../core/paths'
 import * as store from '../core/store'
 import { buildGraph } from '../core/graph'
 import { htmlToMd } from '../core/markdown'
 import * as templates from '../core/templates'
 import { readAiConfig, writeAiConfig } from '../core/ai/config'
-import { suggestFiling } from '../core/ai/file'
+import { suggestConnections } from '../core/ai/suggest'
 import { ask } from '../core/ai/ask'
 import { addInsight } from '../core/insights'
+import { setAbsorbed, today } from '../core/absorb'
 
 const run = promisify(execFile)
 
@@ -27,6 +28,16 @@ function send(channel: string, ...args: unknown[]) {
 // ---------- notes ----------
 async function listNotes(): Promise<Note[]> {
   return (await store.listStored()).map(store.toNote)
+}
+
+async function absorb(req: AbsorbRequest): Promise<Note> {
+  const n = await store.readStored(req.noteId)
+  if (!n) throw new Error('Note not found')
+  const absorbed = setAbsorbed(n.absorbed, { section: req.section, date: today(), links: req.links, tags: req.tags })
+  const saved = await store.writeStored({ ...n, absorbed, updatedAt: Date.now() })
+  if (req.insight?.trim()) await addInsight({ text: req.insight, noteTitle: n.title || 'Untitled', section: req.section })
+  send('notes-changed')
+  return store.toNote(saved)
 }
 
 async function aiConfig() {
@@ -74,7 +85,7 @@ async function appleNotesImport(ids: string[]): Promise<number> {
     if (firstLine && firstLine === n.name.trim()) md = md.split('\n').slice(1).join('\n').replace(/^\n+/, '')
     md = normalizeAppleMarkdown(md)
     const now = Date.now()
-    await store.writeStored({ id: crypto.randomUUID(), title: n.name, body: md, pinned: false, tags: [], createdAt: Date.parse(n.created) || now, updatedAt: Date.parse(n.modified) || now })
+    await store.writeStored({ id: crypto.randomUUID(), title: n.name, body: md, pinned: false, tags: [], absorbed: [], createdAt: Date.parse(n.created) || now, updatedAt: Date.parse(n.modified) || now })
     count++
   }
   if (count) send('notes-changed')
@@ -138,8 +149,9 @@ function buildMenu() {
       label: 'View',
       submenu: [
         { label: 'Search', accelerator: 'CmdOrCtrl+F', click: () => send('menu', 'focus-search') },
-        { label: 'Review Pile', accelerator: 'CmdOrCtrl+1', click: () => send('menu', 'view-review') },
-        { label: 'Reviewed Notes', accelerator: 'CmdOrCtrl+2', click: () => send('menu', 'view-reviewed') },
+        { label: 'Notes', accelerator: 'CmdOrCtrl+1', click: () => send('menu', 'view-inbox') },
+        { label: 'Brain', accelerator: 'CmdOrCtrl+2', click: () => send('menu', 'view-brain') },
+        { label: 'All', accelerator: 'CmdOrCtrl+3', click: () => send('menu', 'view-all') },
         { label: 'Back to Notes', accelerator: 'CmdOrCtrl+[', click: () => send('menu', 'go-home') },
         { type: 'separator' },
         { role: 'reload' },
@@ -157,6 +169,8 @@ app.whenReady().then(async () => {
   if (process.platform === 'darwin') app.dock?.setIcon(ICON)
   await store.ensureNotesDir()
   await templates.ensureTemplates()
+  const migrated = await store.migrateMarkers()
+  if (migrated) console.log(`moved absorb markers into frontmatter for ${migrated} note(s)`)
 
   ipcMain.handle('notes:list', () => listNotes())
   ipcMain.handle('notes:save', async (_e, note: Note) => store.toNote(await store.writeStored(store.fromNote(note))))
@@ -168,9 +182,9 @@ app.whenReady().then(async () => {
   ipcMain.handle('templates:delete', (_e, name: string) => templates.deleteTemplate(name))
   ipcMain.handle('ai:status', async (): Promise<AiStatus> => { const c = await readAiConfig(); return { configured: !!c, model: c?.model } })
   ipcMain.handle('ai:configure', async (_e, cfg: { apiKey: string; model?: string }): Promise<AiStatus> => { await writeAiConfig(cfg); const c = await readAiConfig(); return { configured: !!c, model: c?.model } })
-  ipcMain.handle('ai:file', async (_e, req: FileRequest) => { const cfg = await aiConfig(); return suggestFiling(req, await store.listStored(), cfg) })
+  ipcMain.handle('ai:suggest', async (_e, req: SuggestRequest) => { const cfg = await aiConfig(); return suggestConnections(req, await store.listStored(), cfg) })
   ipcMain.handle('ai:ask', async (_e, req: AskRequest) => { const cfg = await aiConfig(); return ask(req, await store.listStored(), cfg) })
-  ipcMain.handle('insights:add', async (_e, req: InsightRequest) => { const id = await addInsight(req); send('notes-changed'); return id })
+  ipcMain.handle('notes:absorb', (_e, req: AbsorbRequest) => absorb(req))
   ipcMain.handle('apple:list', () => appleNotesList())
   ipcMain.handle('apple:import', (_e, ids: string[]) => appleNotesImport(ids))
 

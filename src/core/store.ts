@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs'
 import { join } from 'path'
 import matter from 'gray-matter'
-import type { Note } from '../shared/types'
+import type { Note, Absorbed } from '../shared/types'
 import { NOTES_DIR } from './paths'
 import { htmlToMd, mdToHtml, mdToText, extractTags } from './markdown'
 
@@ -12,6 +12,7 @@ export interface StoredNote {
   body: string // markdown
   pinned: boolean
   tags: string[]
+  absorbed: Absorbed[]
   createdAt: number
   updatedAt: number
   path: string
@@ -40,10 +41,24 @@ function parse(raw: string, path: string): StoredNote | null {
     body,
     pinned: Boolean(data.pinned),
     tags: Array.isArray(data.tags) ? data.tags.map(String) : extractTags(body),
+    absorbed: parseAbsorbed(data.absorbed),
     createdAt: parseWhen(data.created) ?? Date.now(),
     updatedAt: parseWhen(data.updated) ?? Date.now(),
     path
   }
+}
+
+function parseAbsorbed(v: unknown): Absorbed[] {
+  if (!Array.isArray(v)) return []
+  const out: Absorbed[] = []
+  for (const e of v) {
+    if (!e || typeof e !== 'object') continue
+    const r = e as Record<string, unknown>
+    const date = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date ?? '').slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
+    out.push({ ...(r.section ? { section: String(r.section) } : {}), date, links: Array.isArray(r.links) ? r.links.map(String) : [], tags: Array.isArray(r.tags) ? r.tags.map(String) : [] })
+  }
+  return out
 }
 
 // Cache parsed notes by path + mtime so listing a big folder is cheap, and keep an id -> path index
@@ -105,6 +120,7 @@ export function serialize(n: Omit<StoredNote, 'path'>): string {
   }
   if (n.pinned) fm.pinned = true
   if (n.tags.length) fm.tags = n.tags
+  if (n.absorbed.length) fm.absorbed = n.absorbed.map((a) => ({ ...(a.section ? { section: a.section } : {}), date: a.date, ...(a.links.length ? { links: a.links } : {}), ...(a.tags.length ? { tags: a.tags } : {}) }))
   return matter.stringify('\n' + n.body, fm)
 }
 
@@ -139,6 +155,7 @@ export function toNote(s: StoredNote): Note {
     text,
     pinned: s.pinned,
     tags: s.tags,
+    absorbed: s.absorbed,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt
   }
@@ -152,7 +169,21 @@ export function fromNote(n: Note): Omit<StoredNote, 'path'> {
     body,
     pinned: n.pinned,
     tags: extractTags(body),
+    absorbed: n.absorbed ?? [],
     createdAt: n.createdAt,
     updatedAt: n.updatedAt
   }
+}
+
+// ---------- one-time migration: "Links:" / "Reviewed:" lines written into bodies by the first version ----------
+import { migrateMarkerLines } from './absorb'
+export async function migrateMarkers(): Promise<number> {
+  let n = 0
+  for (const note of await listStored()) {
+    const m = migrateMarkerLines(note.body, note.absorbed)
+    if (!m) continue
+    await writeStored({ ...note, body: m.body, tags: extractTags(m.body), absorbed: m.absorbed })
+    n++
+  }
+  return n
 }

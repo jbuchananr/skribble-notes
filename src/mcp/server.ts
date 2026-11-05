@@ -1,6 +1,6 @@
 /**
- * Skribble MCP server (stdio). Exposes your markdown notes, the link graph, the review pile and the
- * filing actions to any MCP client: Claude, Claude Code, ChatGPT, Cursor, custom agents.
+ * Skribble MCP server (stdio). Exposes your markdown notes, the link graph, the inbox and the
+ * absorb actions to any MCP client: Claude, Claude Code, ChatGPT, Cursor, custom agents.
  *
  *   claude mcp add skribble -- node /path/to/skribble/out/mcp/server.mjs
  */
@@ -11,12 +11,12 @@ import { randomUUID } from 'crypto'
 import * as store from '../core/store'
 import { buildGraph, related, nodesForNote, label } from '../core/graph'
 import { parseSections } from '../core/sections'
-import { applyFiling, existingLinks, today } from '../core/filing'
-import { reviewQueue, reviewedUnits } from '../core/review'
+import { setAbsorbed, getAbsorbed, today } from '../core/absorb'
+import { inbox, brain } from '../core/inbox'
 import { addInsight } from '../core/insights'
 import { readAiConfig } from '../core/ai/config'
-import { suggestFiling } from '../core/ai/file'
-import { ask, publishedPassages, retrieve } from '../core/ai/ask'
+import { suggestConnections } from '../core/ai/suggest'
+import { ask, brainPassages, retrieve } from '../core/ai/ask'
 import { listTemplates, renderTemplate } from '../core/templates'
 import { mdToText } from '../core/markdown'
 import { NOTES_DIR } from '../core/paths'
@@ -48,8 +48,8 @@ async function renderNote(n: store.StoredNote) {
   if (backlinks.length) out += `linked from: ${backlinks.map(label).join('; ')}\n`
   const secs = parseSections(n.body)
   if (secs.length) out += `sections: ${secs.map((x) => x.heading).join(' | ')}\n`
-  const pending = mine.filter((m) => !m.reviewed && m.level > 0 && m.level <= 2).map((m) => m.section)
-  if (pending.length) out += `not yet reviewed: ${pending.join(' | ')}\n`
+  const pending = mine.filter((m) => !m.absorbed && m.level > 0 && m.level <= 2).map((m) => m.section)
+  if (pending.length) out += `in inbox (not absorbed yet): ${pending.join(' | ')}\n`
   out += `\n${n.body}\n`
   return out
 }
@@ -82,7 +82,7 @@ server.registerTool('search_notes', {
 })
 
 server.registerTool('read_note', {
-  description: 'Read a note as markdown, with its links, backlinks, sections, and which sections are not yet reviewed.',
+  description: 'Read a note as markdown, with its links, backlinks, sections, and which sections are still in the inbox.',
   inputSchema: { id: z.string().describe('note id, or an exact title') }
 }, async ({ id }) => {
   const notes = await store.listStored()
@@ -97,7 +97,7 @@ server.registerTool('create_note', {
 }, async ({ title, body }) => {
   const now = Date.now()
   const id = randomUUID()
-  await store.writeStored({ id, title, body, pinned: false, tags: [], createdAt: now, updatedAt: now })
+  await store.writeStored({ id, title, body, pinned: false, tags: [], absorbed: [], createdAt: now, updatedAt: now })
   return text(`Created note ${id} "${title}"`)
 })
 
@@ -127,7 +127,7 @@ server.registerTool('append_to_note', {
 })
 
 server.registerTool('get_graph', {
-  description: 'The knowledge graph. One node per section of a note (long notes are made of dated sections like "Standup 10/13"), each with tags, [[links]], backlinks and its reviewed date. Node ids are "<noteId>" or "<noteId>#<section-slug>".',
+  description: 'The knowledge graph. One node per section of a note (long notes are made of dated sections like "Standup 10/13"), each with tags, [[links]], backlinks and the date it was absorbed. Node ids are "<noteId>" or "<noteId>#<section-slug>".',
   inputSchema: { id: z.string().optional().describe('a note id or node id: return only it and its neighbours') }
 }, async ({ id }) => {
   const graph = buildGraph(await store.listStored())
@@ -171,33 +171,33 @@ server.registerTool('append_section', {
   return text(`Appended section to ${note_id}`)
 })
 
-// ---------- review & filing ----------
-server.registerTool('list_unreviewed', {
-  description: 'The review pile: sections (or whole notes without headings) the user has written but not yet synthesized and filed, newest first. Each needs a "Reviewed:" line, added with mark_reviewed after the user has decided its takeaway.',
+// ---------- inbox & brain ----------
+server.registerTool('list_inbox', {
+  description: 'The inbox: sections (or whole notes without headings) the user has written but not yet absorbed, newest first. Absorbing is the user\'s act of deciding what a section means and where it connects; help them, do not do it for them.',
   inputSchema: { limit: z.number().int().min(1).max(200).default(30) }
 }, async ({ limit }) => {
-  const queue = reviewQueue(buildGraph(await store.listStored()))
-  return text(JSON.stringify(queue.slice(0, limit).map((n) => ({ note_id: n.noteId, note: n.noteTitle || 'Untitled', section: n.section, date: n.date, preview: n.preview })), null, 2))
+  const q = inbox(buildGraph(await store.listStored()))
+  return text(JSON.stringify(q.slice(0, limit).map((n) => ({ note_id: n.noteId, note: n.noteTitle || 'Untitled', section: n.section, date: n.date, preview: n.preview })), null, 2))
 })
 
-server.registerTool('list_reviewed', {
-  description: 'Sections the user has reviewed and filed, most recently reviewed first. This is their published thinking; prefer it over unreviewed notes when answering questions.',
+server.registerTool('list_brain', {
+  description: 'The brain: absorbed sections and insight cards, most recent first. This is the user\'s settled thinking; prefer it over the inbox when answering questions.',
   inputSchema: { limit: z.number().int().min(1).max(200).default(30) }
 }, async ({ limit }) => {
-  const units = reviewedUnits(buildGraph(await store.listStored()))
-  return text(JSON.stringify(units.slice(0, limit).map((n) => ({ note_id: n.noteId, note: n.noteTitle || 'Untitled', section: n.section, reviewed: n.reviewed, tags: n.tags, preview: n.preview })), null, 2))
+  const units = brain(buildGraph(await store.listStored()))
+  return text(JSON.stringify(units.slice(0, limit).map((n) => ({ node_id: n.id, note_id: n.noteId, note: n.noteTitle || 'Untitled', section: n.section, absorbed: n.absorbed, insight: n.insight || undefined, tags: n.tags, preview: n.preview })), null, 2))
 })
 
-server.registerTool('search_reviewed', {
-  description: 'Find the reviewed sections and insight cards most relevant to a question, with their full text. Use this to answer from the user\'s settled thinking without calling a model.',
+server.registerTool('search_brain', {
+  description: 'Find the absorbed sections and insight cards most relevant to a question, with their full text. Use this to answer from the user\'s settled thinking without calling a model.',
   inputSchema: { query: z.string(), limit: z.number().int().min(1).max(20).default(6) }
 }, async ({ query, limit }) => {
-  const hits = retrieve(query, [], publishedPassages(await store.listStored()), limit)
-  return text(JSON.stringify(hits.map((p) => ({ node_id: p.id, note_id: p.noteId, label: p.label, reviewed: p.reviewed, text: p.text })), null, 2))
+  const hits = retrieve(query, [], brainPassages(await store.listStored()), limit)
+  return text(JSON.stringify(hits.map((p) => ({ node_id: p.id, note_id: p.noteId, label: p.label, absorbed: p.absorbed, text: p.text })), null, 2))
 })
 
-server.registerTool('ask_reviewed', {
-  description: 'Ask a question answered only from the user\'s reviewed sections and insight cards, with citations. Needs the OpenRouter key configured in Skribble.',
+server.registerTool('ask_brain', {
+  description: 'Ask a question answered only from the user\'s absorbed sections and insight cards, with citations. Needs the API key configured in Skribble.',
   inputSchema: { question: z.string() }
 }, async ({ question }) => {
   const cfg = await readAiConfig()
@@ -206,35 +206,36 @@ server.registerTool('ask_reviewed', {
   return text(JSON.stringify(res, null, 2))
 })
 
-server.registerTool('suggest_filing', {
-  description: 'Ask the filing agent which other sections this one connects to. Returns proposed [[links]], tags, and (maybe) a verbatim sentence that reads like the takeaway. Nothing is written: show the proposals to the user and call mark_reviewed with what they keep.',
+server.registerTool('suggest_connections', {
+  description: 'Ask the agent which other sections this one connects to. Returns proposed [[links]], tags, and (maybe) a verbatim sentence that reads like the takeaway. Nothing is written: show the proposals to the user and call absorb with what they keep.',
   inputSchema: { note_id: z.string(), section: z.string().optional().describe('exact section heading; omit for a note without headings') }
 }, async ({ note_id, section }) => {
   const n = await store.readStored(note_id)
   if (!n) return { ...text(`No note ${note_id}`), isError: true }
   const cfg = await readAiConfig()
   if (!cfg) return { ...text('No API key configured in Skribble (~/.config/skribble/ai.json)'), isError: true }
-  const res = await suggestFiling({ noteId: n.id, title: n.title, body: n.body, section }, await store.listStored(), cfg)
-  return text(JSON.stringify({ ...res, existing_links: existingLinks(n.body, section) }, null, 2))
+  const res = await suggestConnections({ noteId: n.id, section }, await store.listStored(), cfg)
+  return text(JSON.stringify({ ...res, already: getAbsorbed(n.absorbed, section) }, null, 2))
 })
 
-server.registerTool('mark_reviewed', {
-  description: 'Mark a section reviewed: writes "Links: [[…]] · #tag" and "Reviewed: <today>" at the end of the section. Only pass links the user chose to keep. Re-running replaces the previous lines.',
+server.registerTool('absorb', {
+  description: 'Absorb a section into the brain: records today\'s date, the links and tags the user kept, in the note\'s frontmatter (the body is never edited). Optionally files a takeaway as an insight card; that sentence must be the user\'s own words. Re-running replaces the previous entry.',
   inputSchema: {
     note_id: z.string(),
     section: z.string().optional().describe('exact section heading; omit for a note without headings'),
     links: z.array(z.string()).default([]).describe('wikilink targets, "Note Title" or "Note Title#Section"'),
-    tags: z.array(z.string()).default([])
+    tags: z.array(z.string()).default([]),
+    insight: z.string().optional().describe('one-sentence takeaway written by the user')
   }
-}, async ({ note_id, section, links, tags }) => {
+}, async ({ note_id, section, links, tags, insight }) => {
   const n = await store.readStored(note_id)
   if (!n) return { ...text(`No note ${note_id}`), isError: true }
-  const body = applyFiling(n.body, section, { links, tags, reviewed: today() })
-  if (body === null) return { ...text(`No section "${section}" in ${note_id}. Sections: ${parseSections(n.body).map((x) => x.heading).join(' | ')}`), isError: true }
-  n.body = body
+  if (section && !parseSections(n.body).some((x) => x.heading === section)) return { ...text(`No section "${section}" in ${note_id}. Sections: ${parseSections(n.body).map((x) => x.heading).join(' | ')}`), isError: true }
+  n.absorbed = setAbsorbed(n.absorbed, { section, date: today(), links, tags })
   n.updatedAt = Date.now()
   await store.writeStored(n)
-  return text(`Marked reviewed: ${n.title || 'Untitled'}${section ? ' › ' + section : ''}`)
+  if (insight?.trim()) await addInsight({ text: insight, noteTitle: n.title || 'Untitled', section })
+  return text(`Absorbed: ${n.title || 'Untitled'}${section ? ' › ' + section : ''}${insight?.trim() ? ' (+ insight card)' : ''}`)
 })
 
 server.registerTool('add_insight', {
@@ -250,5 +251,6 @@ server.registerTool('list_templates', {
   inputSchema: {}
 }, async () => text(JSON.stringify(await listTemplates(), null, 2)))
 
+await store.migrateMarkers()
 const transport = new StdioServerTransport()
 await server.connect(transport)

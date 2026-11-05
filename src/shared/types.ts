@@ -6,6 +6,17 @@ export interface AppleNoteSummary {
   size: number
 }
 
+/** A section (or a headingless note) that has been absorbed: taken from the inbox into your brain. Lives in frontmatter; the body is never touched. */
+export interface Absorbed {
+  /** section heading; absent for a note with no headings */
+  section?: string
+  /** ISO date */
+  date: string
+  /** wikilink targets, "Note Title" or "Note Title#Section" */
+  links: string[]
+  tags: string[]
+}
+
 export interface Note {
   id: string
   title: string
@@ -17,6 +28,7 @@ export interface Note {
   text: string
   pinned: boolean
   tags: string[]
+  absorbed: Absorbed[]
   createdAt: number
   updatedAt: number
 }
@@ -32,16 +44,18 @@ export interface GraphNode {
   level: number
   date?: string
   tags: string[]
-  /** node ids this node links to via [[Note]] or [[Note#Section]] */
+  /** node ids this node links to via [[Note]] or [[Note#Section]], in the text or in its absorbed entry */
   links: string[]
   /** node ids linking here */
   backlinks: string[]
-  /** ISO date of the "Reviewed:" line, once the section has been synthesized and filed */
-  reviewed?: string
+  /** ISO date the unit was absorbed */
+  absorbed?: string
   /** first ~140 chars of the section's own text */
   preview: string
-  /** note's updatedAt, for ordering the review pile */
+  /** note's updatedAt, for ordering the inbox */
   updatedAt: number
+  /** this node is a card in the Insights note */
+  insight?: boolean
 }
 
 export interface Template {
@@ -51,17 +65,14 @@ export interface Template {
 
 export interface AiStatus { configured: boolean; model?: string }
 
-/** Ask the filing agent where a section connects in the graph. */
-export interface FileRequest {
+/** Ask the agent where a section connects in the brain. */
+export interface SuggestRequest {
   noteId: string
-  title: string
-  /** current markdown body (editor may be ahead of disk) */
-  body: string
-  /** heading of the section to file; omit for a note without headings */
+  /** heading of the section; omit for a note without headings */
   section?: string
 }
 
-export interface FileLink {
+export interface Connection {
   /** wikilink target, "Note Title" or "Note Title#Section" */
   target: string
   /** human label, "Note › Section" */
@@ -70,8 +81,8 @@ export interface FileLink {
   why: string
 }
 
-export interface FileResult {
-  links: FileLink[]
+export interface Suggestion {
+  links: Connection[]
   tags: string[]
   /** a verbatim sentence from the section the agent thinks is the takeaway; shown as a prompt, never inserted */
   insightQuote?: string
@@ -80,22 +91,23 @@ export interface FileResult {
   model: string
 }
 
-/** What gets written into the section when it is marked reviewed. */
-export interface Filing {
+/** Absorb a unit: record links/tags/date in frontmatter and optionally file a typed takeaway. */
+export interface AbsorbRequest {
+  noteId: string
+  section?: string
   links: string[]
   tags: string[]
-  /** ISO date */
-  reviewed: string
+  /** the takeaway in the user's own words; becomes an insight card */
+  insight?: string
 }
 
 export interface InsightRequest {
-  /** the takeaway, typed by the user */
   text: string
   noteTitle: string
   section?: string
 }
 
-/** Chat over reviewed notes and insight cards only. */
+/** Chat over the brain: absorbed units and insight cards only. */
 export interface AskTurn { role: 'user' | 'assistant'; content: string }
 
 export interface AskRequest {
@@ -106,12 +118,12 @@ export interface AskRequest {
 export interface AskSource {
   nodeId: string
   noteId: string
+  section?: string
   label: string
 }
 
 export interface AskResult {
   reply: string
-  /** the reviewed sections the answer drew on */
   sources: AskSource[]
   model: string
 }
@@ -130,10 +142,10 @@ export interface NotesApi {
   appleNotesImport: (ids: string[]) => Promise<number>
   aiStatus: () => Promise<AiStatus>
   aiConfigure: (cfg: { apiKey: string; model?: string }) => Promise<AiStatus>
-  aiFile: (req: FileRequest) => Promise<FileResult>
+  aiSuggest: (req: SuggestRequest) => Promise<Suggestion>
   aiAsk: (req: AskRequest) => Promise<AskResult>
-  /** append a one-sentence insight card to the Insights note; returns that note's id */
-  insightAdd: (req: InsightRequest) => Promise<string>
+  /** absorb a unit; returns the note as re-read from disk */
+  absorb: (req: AbsorbRequest) => Promise<Note>
   onMenu: (cb: (action: string) => void) => () => void
   onNotesChanged: (cb: () => void) => () => void
 }

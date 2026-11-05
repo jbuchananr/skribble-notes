@@ -2,12 +2,12 @@ import { forwardRef, useMemo } from 'react'
 import type { GraphNode, Note } from '../../../shared/types'
 import { groupLabel, shortTime } from '@/lib/dates'
 import { displayTitle } from '@/lib/notes'
-import { reviewQueue, reviewedUnits, unitTime } from '../../../core/review'
-import { Plus, Search, Pin, FileText, Inbox, CheckCheck, ChevronRight } from './Icons'
+import { inbox, brain, unitTime } from '../../../core/inbox'
+import { Plus, Search, Pin, FileText, Inbox, Brain, ChevronRight, Lightbulb } from './Icons'
 import { Ask } from './Ask'
 import logo from '../../../../assets/logo-mark.png'
 
-export type HomeView = 'review' | 'reviewed' | 'all'
+export type HomeView = 'inbox' | 'brain' | 'all'
 
 interface Props {
   notes: Note[]
@@ -16,45 +16,41 @@ interface Props {
   setView: (v: HomeView) => void
   query: string
   setQuery: (q: string) => void
+  onAbsorb: (node: GraphNode) => void
   onOpen: (id: string, section?: string) => void
   onNew: () => void
 }
 
-const fmtReviewed = (iso: string) => { const t = Date.parse(iso + 'T12:00:00'); return Number.isNaN(t) ? iso : new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }
+const fmtDay = (iso: string) => { const t = Date.parse(iso + 'T12:00:00'); return Number.isNaN(t) ? iso : new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }
 
-export const Home = forwardRef<HTMLInputElement, Props>(function Home({ notes, graph, view, setView, query, setQuery, onOpen, onNew }, searchRef) {
+export const Home = forwardRef<HTMLInputElement, Props>(function Home({ notes, graph, view, setView, query, setQuery, onAbsorb, onOpen, onNew }, searchRef) {
   const q = query.trim().toLowerCase()
   const match = (n: GraphNode) => !q || n.noteTitle.toLowerCase().includes(q) || (n.section ?? '').toLowerCase().includes(q) || n.preview.toLowerCase().includes(q) || n.tags.some((t) => t.includes(q))
 
-  const queue = useMemo(() => reviewQueue(graph), [graph])
-  const reviewed = useMemo(() => reviewedUnits(graph), [graph])
+  const queue = useMemo(() => inbox(graph), [graph])
+  const mind = useMemo(() => brain(graph), [graph])
   const queueShown = queue.filter(match)
-  const reviewedShown = reviewed.filter(match)
+  const mindShown = mind.filter(match)
   const notesShown = notes.filter((n) => !q || n.title.toLowerCase().includes(q) || (n.text ?? '').toLowerCase().includes(q))
 
-  const queueGroups = useMemo(() => {
-    const out: { label: string; items: GraphNode[] }[] = []
-    for (const u of queueShown) {
-      const label = groupLabel(unitTime(u))
+  const groupBy = <T,>(items: T[], when: (t: T) => number) => {
+    const out: { label: string; items: T[] }[] = []
+    for (const it of items) {
+      const l = groupLabel(when(it))
       const g = out[out.length - 1]
-      if (g && g.label === label) g.items.push(u); else out.push({ label, items: [u] })
+      if (g && g.label === l) g.items.push(it); else out.push({ label: l, items: [it] })
     }
     return out
-  }, [queueShown])
-
+  }
+  const queueGroups = useMemo(() => groupBy(queueShown, unitTime), [queueShown])
   const noteGroups = useMemo(() => {
     const out: { label: string; items: Note[] }[] = []
     const pinned = notesShown.filter((n) => n.pinned)
     if (pinned.length) out.push({ label: 'Pinned', items: pinned })
-    for (const n of notesShown.filter((n) => !n.pinned)) {
-      const label = groupLabel(n.updatedAt)
-      const g = out[out.length - 1]
-      if (g && g.label === label) g.items.push(n); else out.push({ label, items: [n] })
-    }
-    return out
+    return [...out, ...groupBy(notesShown.filter((n) => !n.pinned), (n) => n.updatedAt)]
   }, [notesShown])
 
-  const placeholder = view === 'review' ? 'Search the review pile' : view === 'reviewed' ? 'Search reviewed sections' : 'Search all notes'
+  const placeholder = view === 'inbox' ? 'Search notes' : view === 'brain' ? 'Search your brain' : 'Search everything'
 
   return (
     <div className="home">
@@ -62,34 +58,28 @@ export const Home = forwardRef<HTMLInputElement, Props>(function Home({ notes, g
       <div className="home-inner">
         <header className="home-header">
           <h1><img className="logo" src={logo} alt="" /> Skribble</h1>
-          <div className="home-actions">
-            <button className="btn-primary" onClick={onNew}><Plus /> New note</button>
-          </div>
+          <button className="btn-primary" onClick={onNew}><Plus /> New note</button>
         </header>
 
         <div className="home-tabs">
-          <button className={view === 'review' ? 'on' : ''} onClick={() => setView('review')}><Inbox /> To review {queue.length > 0 && <span className="n">{queue.length}</span>}</button>
-          <button className={view === 'reviewed' ? 'on' : ''} onClick={() => setView('reviewed')}><CheckCheck /> Reviewed {reviewed.length > 0 && <span className="n">{reviewed.length}</span>}</button>
-          <button className={view === 'all' ? 'on' : ''} onClick={() => setView('all')}><FileText /> All notes</button>
+          <button className={view === 'inbox' ? 'on' : ''} onClick={() => setView('inbox')}><FileText /> Notes {queue.length > 0 && <span className="n">{queue.length}</span>}</button>
+          <button className={view === 'brain' ? 'on' : ''} onClick={() => setView('brain')}><Brain /> Brain {mind.length > 0 && <span className="n muted">{mind.length}</span>}</button>
+          <button className={view === 'all' ? 'on' : ''} onClick={() => setView('all')}><Inbox /> All</button>
         </div>
+
+        {view === 'brain' && <Ask onOpen={onOpen} brainCount={mind.length} />}
 
         <label className="search">
           <Search />
-          <input
-            ref={searchRef}
-            placeholder={placeholder}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') { setQuery(''); (e.target as HTMLInputElement).blur() } }}
-          />
+          <input ref={searchRef} placeholder={placeholder} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') { setQuery(''); (e.target as HTMLInputElement).blur() } }} />
         </label>
 
-        {view === 'review' && (
+        {view === 'inbox' && (
           <>
             {queueShown.length === 0 && (
               <div className="home-empty">
-                <CheckCheck />
-                <p>{q ? 'Nothing in the pile matches.' : queue.length === 0 && notes.length > 0 ? 'Pile is empty. Everything you wrote is reviewed.' : 'Notes you write land here until you review them. Press ⌘N to start one.'}</p>
+                <Inbox />
+                <p>{q ? 'No notes match.' : queue.length === 0 && notes.length > 0 ? 'All caught up. Everything you wrote is in your brain.' : 'Whatever you write lands here until you absorb it. Press ⌘N to start a note.'}</p>
               </div>
             )}
             {queueGroups.map((g) => (
@@ -97,7 +87,7 @@ export const Home = forwardRef<HTMLInputElement, Props>(function Home({ notes, g
                 <h2>{g.label}</h2>
                 <div className="cards">
                   {g.items.map((u) => (
-                    <button key={u.id} className="card review-card" onClick={() => onOpen(u.noteId, u.section)}>
+                    <button key={u.id} className="card unit-card" onClick={() => onAbsorb(u)}>
                       <div className="card-top">
                         <span className="card-title">{u.noteTitle || 'Untitled'}{u.section && <><ChevronRight className="sep-icon" />{u.section}</>}</span>
                         <span className="card-time">{shortTime(unitTime(u))}</span>
@@ -111,23 +101,28 @@ export const Home = forwardRef<HTMLInputElement, Props>(function Home({ notes, g
           </>
         )}
 
-        {view === 'reviewed' && (
+        {view === 'brain' && (
           <>
-            <Ask onOpen={onOpen} reviewedCount={reviewed.length} />
-            {reviewedShown.length === 0 && (
+            {mindShown.length === 0 && (
               <div className="home-empty">
-                <CheckCheck />
-                <p>{q ? 'No reviewed section matches.' : 'Nothing reviewed yet. Open a note, pick a section in the File tab, and mark it reviewed.'}</p>
+                <Brain />
+                <p>{q ? 'Nothing in your brain matches.' : 'Empty so far. Absorb a note and it shows up here.'}</p>
               </div>
             )}
-            {reviewedShown.length > 0 && (
+            {mindShown.length > 0 && (
               <section className="group">
                 <div className="cards">
-                  {reviewedShown.map((u) => (
-                    <button key={u.id} className="card review-card done" onClick={() => onOpen(u.noteId, u.section)}>
+                  {mindShown.map((u) => u.insight ? (
+                    <button key={u.id} className="card insight-card" onClick={() => onOpen(u.noteId, u.section)}>
+                      <Lightbulb />
+                      <span className="insight-text">{u.section}</span>
+                      <span className="card-time">{shortTime(u.updatedAt)}</span>
+                    </button>
+                  ) : (
+                    <button key={u.id} className="card unit-card done" onClick={() => onAbsorb(u)} title="Open to re-absorb">
                       <div className="card-top">
                         <span className="card-title">{u.noteTitle || 'Untitled'}{u.section && <><ChevronRight className="sep-icon" />{u.section}</>}</span>
-                        <span className="card-time" title="Reviewed">{u.reviewed && fmtReviewed(u.reviewed)}</span>
+                        <span className="card-time">{u.absorbed && fmtDay(u.absorbed)}</span>
                       </div>
                       <div className="card-snippet">{u.preview || 'No additional text'}</div>
                       {(u.tags.length > 0 || u.links.length > 0) && (
@@ -157,7 +152,7 @@ export const Home = forwardRef<HTMLInputElement, Props>(function Home({ notes, g
                 <h2>{g.label}</h2>
                 <div className="cards">
                   {g.items.map((n) => {
-                    const pending = graph.filter((x) => x.noteId === n.id && !x.reviewed && x.level > 0 && x.level <= 2 && x.preview.length >= 20).length
+                    const pending = queue.filter((x) => x.noteId === n.id).length
                     return (
                       <button key={n.id} className="card" onClick={() => onOpen(n.id)}>
                         <div className="card-top">
@@ -165,7 +160,7 @@ export const Home = forwardRef<HTMLInputElement, Props>(function Home({ notes, g
                           <span className="card-time">{shortTime(n.updatedAt)}</span>
                         </div>
                         <div className="card-snippet">{n.preview || 'No additional text'}</div>
-                        {pending > 0 && <div className="card-sources"><Inbox /> {pending} to review</div>}
+                        {pending > 0 && <div className="card-sources"><Brain /> {pending} to absorb</div>}
                       </button>
                     )
                   })}

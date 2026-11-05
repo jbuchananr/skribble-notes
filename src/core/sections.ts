@@ -10,16 +10,9 @@ export interface Section {
   start: number
   end: number
   text: string
-  /** ISO date from a "Reviewed: 2026-11-05" line: the section has been synthesized and filed */
-  reviewed?: string
-  reviewedLine?: number
-  /** line index of a "Links: [[…]]" line written by filing */
-  linksLine?: number
 }
 
 const DATE_RE = /\s+(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s*$/
-export const REVIEWED_RE = /^\s*(?:\*\*)?Reviewed:?(?:\*\*)?\s*(\d{4}-\d{2}-\d{2})/i
-export const LINKS_RE = /^\s*(?:\*\*)?Links:?(?:\*\*)?\s*/i
 
 export function parseHeadingDate(heading: string, now = new Date()): { title: string; date?: string } {
   const m = heading.match(DATE_RE)
@@ -43,12 +36,7 @@ export function parseSections(body: string): Section[] {
   const close = (end: number) => {
     if (!cur) return
     cur.end = end
-    const slice = lines.slice(cur.start + 1, end)
-    cur.text = slice.join('\n')
-    slice.forEach((l, i) => {
-      const r = l.match(REVIEWED_RE); if (r && cur!.reviewed === undefined) { cur!.reviewed = r[1]; cur!.reviewedLine = cur!.start + 1 + i }
-      if (LINKS_RE.test(l) && cur!.linksLine === undefined) cur!.linksLine = cur!.start + 1 + i
-    })
+    cur.text = lines.slice(cur.start + 1, end).join('\n')
     out.push(cur)
   }
   lines.forEach((line, i) => {
@@ -64,10 +52,14 @@ export function parseSections(body: string): Section[] {
   return out
 }
 
-/** A section's reviewed date, counting a marker written at the end of its last H3 child (filing writes it there). */
-export function unitReviewed(sections: Section[], i: number): string | undefined {
+/** Markdown of one unit: the section with its H3 children, or the preamble. Null if missing. */
+export function unitMarkdown(body: string, heading: string | undefined): string | null {
+  const lines = body.split('\n')
+  const sections = parseSections(body)
+  if (!heading) return lines.slice(0, sections[0]?.start ?? lines.length).join('\n')
+  const i = sections.findIndex((s) => s.heading === heading)
+  if (i < 0) return null
   const sec = sections[i]
-  if (sec.reviewed) return sec.reviewed
-  for (let j = i + 1; j < sections.length && sections[j].level > sec.level; j++) if (sections[j].reviewed) return sections[j].reviewed
-  return undefined
+  const next = sections.slice(i + 1).find((s) => s.level <= sec.level)
+  return lines.slice(sec.start + 1, next ? next.start : lines.length).join('\n')
 }

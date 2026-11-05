@@ -1,12 +1,12 @@
 /**
- * The filing agent: given one section, propose where it connects in the graph. It never writes the
+ * The connections agent: given one unit, propose where it connects in the brain. It never writes the
  * note. It returns candidate links (only to sections it was actually shown), tags already in use,
  * and at most one verbatim sentence it would call the takeaway, which the UI shows as a prompt.
  */
-import type { FileRequest, FileResult, FileLink } from '../../shared/types'
+import type { SuggestRequest, Suggestion, Connection } from '../../shared/types'
 import type { StoredNote } from '../store'
 import { buildGraph } from '../graph'
-import { wikilinkTarget } from '../filing'
+import { wikilinkTarget } from '../absorb'
 import { unitsOf, relatedSections } from './context'
 import { chat, type ChatMessage } from './openrouter'
 import type { AiConfig } from './config'
@@ -29,19 +29,19 @@ Rules:
 Respond ONLY with JSON:
 { "links": [{ "ref": 1, "why": "…" }], "tags": ["…"], "insight": "…" }`
 
-export function buildFileMessages(req: FileRequest, notes: StoredNote[]) {
-  const units = unitsOf({ id: req.noteId, title: req.title, body: req.body })
-  const focus = req.section ? units.find((u) => u.heading === req.section) : units.find((u) => !u.heading) ?? units[0]
-  const focusText = focus ? focus.text : req.body
-  const candidates = relatedSections(focusText, req.noteId, req.section, notes, MAX_CANDIDATES)
+export function buildSuggestMessages(note: StoredNote, section: string | undefined, notes: StoredNote[]) {
+  const units = unitsOf(note)
+  const focus = section ? units.find((u) => u.heading === section) : units.find((u) => !u.heading) ?? units[0]
+  const focusText = focus ? focus.text : note.body
+  const candidates = relatedSections(focusText, note.id, section, notes, MAX_CANDIDATES)
   const tagCounts = new Map<string, number>()
-  for (const n of notes) for (const t of n.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1)
+  for (const n of notes) for (const t of [...n.tags, ...n.absorbed.flatMap((a) => a.tags)]) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1)
   const tags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, MAX_TAGS_SHOWN).map(([t]) => t)
 
   const packet = [
     `Today: ${new Date().toISOString().slice(0, 10)}`,
-    `NOTE: ${req.title || 'Untitled'}`,
-    req.section ? `FOCUS (section "${req.section}"):` : 'FOCUS (whole note):',
+    `NOTE: ${note.title || 'Untitled'}`,
+    section ? `FOCUS (section "${section}"):` : 'FOCUS (whole note):',
     focusText.trim().slice(0, SECTION_CAP),
     '',
     tags.length ? `EXISTING TAGS: ${tags.map((t) => '#' + t).join(' ')}` : 'EXISTING TAGS: none yet',
@@ -53,13 +53,13 @@ export function buildFileMessages(req: FileRequest, notes: StoredNote[]) {
   return { messages, candidates }
 }
 
-export function parseFileResult(raw: string, candidates: { id: string; label: string }[], graph: ReturnType<typeof buildGraph>): Omit<FileResult, 'context' | 'model'> {
+export function parseSuggestion(raw: string, candidates: { id: string; label: string }[], graph: ReturnType<typeof buildGraph>): Omit<Suggestion, 'context' | 'model'> {
   let text = raw.trim()
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/)
   if (fence) text = fence[1].trim()
   let data: Record<string, unknown> = {}
   try { data = JSON.parse(text) } catch { return { links: [], tags: [] } }
-  const links: FileLink[] = []
+  const links: Connection[] = []
   const seen = new Set<string>()
   for (const l of Array.isArray(data.links) ? data.links : []) {
     if (!l || typeof l !== 'object') continue
@@ -80,12 +80,11 @@ export function parseFileResult(raw: string, candidates: { id: string; label: st
   return { links, tags, insightQuote: insight || undefined }
 }
 
-export async function suggestFiling(req: FileRequest, notes: StoredNote[], cfg: AiConfig): Promise<FileResult> {
-  const { messages, candidates } = buildFileMessages(req, notes)
-  // the graph should see the editor's version of this note so links resolve to current headings
-  const live = notes.map((n) => (n.id === req.noteId ? { ...n, title: req.title, body: req.body } : n))
-  const graph = buildGraph(live)
+export async function suggestConnections(req: SuggestRequest, notes: StoredNote[], cfg: AiConfig): Promise<Suggestion> {
+  const note = notes.find((n) => n.id === req.noteId)
+  if (!note) throw new Error('Note not found')
+  const { messages, candidates } = buildSuggestMessages(note, req.section, notes)
   if (!candidates.length) return { links: [], tags: [], context: [], model: cfg.model }
   const raw = await chat(cfg, messages, { json: true, maxTokens: 800 })
-  return { ...parseFileResult(raw, candidates, graph), context: candidates.map((c) => c.label), model: cfg.model }
+  return { ...parseSuggestion(raw, candidates, buildGraph(notes)), context: candidates.map((c) => c.label), model: cfg.model }
 }

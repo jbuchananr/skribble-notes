@@ -5,14 +5,11 @@
 import { randomUUID } from 'crypto'
 import type { InsightRequest } from '../shared/types'
 import * as store from './store'
-import { today } from './filing'
-
-const TITLES = ['insights', 'learnings', 'insights & learnings', 'insights and learnings', 'key learnings']
+import { today } from './absorb'
+import { isInsightsNote } from './graph'
 
 export async function findInsightsNote(): Promise<store.StoredNote | undefined> {
-  const notes = await store.listStored()
-  for (const t of TITLES) { const n = notes.find((x) => x.title.trim().toLowerCase() === t); if (n) return n }
-  return undefined
+  return (await store.listStored()).find(isInsightsNote)
 }
 
 export function insightCard(req: InsightRequest, date = today()): string {
@@ -26,7 +23,7 @@ export async function addInsight(req: InsightRequest): Promise<string> {
   if (!req.text.trim()) throw new Error('Insight is empty')
   const now = Date.now()
   const existing = await findInsightsNote()
-  const n = existing ?? { id: randomUUID(), title: 'Insights', body: '', pinned: true, tags: [], createdAt: now, updatedAt: now }
+  const n = existing ?? { id: randomUUID(), title: 'Insights', body: '', pinned: true, tags: [], absorbed: [], createdAt: now, updatedAt: now }
   const body = n.body.replace(/\s+$/, '')
   n.body = (body ? body + '\n\n' : '') + insightCard(req)
   n.updatedAt = now

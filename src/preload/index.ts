@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { NotesApi, Note, Template, FileRequest, InsightRequest, AskRequest } from '../shared/types'
+import type { NotesApi, Note, Template, SuggestRequest, AbsorbRequest, AskRequest } from '../shared/types'
 
 const on = (channel: string) => (cb: (...a: never[]) => void) => {
   const handler = (_e: unknown, ...args: unknown[]) => (cb as (...a: unknown[]) => void)(...args)
@@ -20,9 +20,9 @@ const api: NotesApi = {
   appleNotesImport: (ids: string[]) => ipcRenderer.invoke('apple:import', ids),
   aiStatus: () => ipcRenderer.invoke('ai:status'),
   aiConfigure: (cfg: { apiKey: string; model?: string }) => ipcRenderer.invoke('ai:configure', cfg),
-  aiFile: (req: FileRequest) => ipcRenderer.invoke('ai:file', req),
+  aiSuggest: (req: SuggestRequest) => ipcRenderer.invoke('ai:suggest', req),
   aiAsk: (req: AskRequest) => ipcRenderer.invoke('ai:ask', req),
-  insightAdd: (req: InsightRequest) => ipcRenderer.invoke('insights:add', req),
+  absorb: (req: AbsorbRequest) => ipcRenderer.invoke('notes:absorb', req),
   onMenu: on('menu'),
   onNotesChanged: on('notes-changed')
 }

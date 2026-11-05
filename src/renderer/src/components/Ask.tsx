@@ -4,12 +4,12 @@ import { mdToHtml } from '../../../core/markdown'
 import { ArrowUp, MessageSquareText, RefreshCw } from './Icons'
 
 interface Entry { id: number; role: 'user' | 'assistant'; text: string; sources?: AskSource[]; error?: boolean }
-interface Props { onOpen: (noteId: string, section?: string) => void; reviewedCount: number }
+interface Props { onOpen: (noteId: string, section?: string) => void; brainCount: number }
 
 let nextId = 1
 
-/** Chat over reviewed sections and insight cards. Lives on the Reviewed view, not in the editor. */
-export function Ask({ onOpen, reviewedCount }: Props) {
+/** Chat over the brain: absorbed sections and insight cards. */
+export function Ask({ onOpen, brainCount }: Props) {
   const [status, setStatus] = useState<AiStatus | null>(null)
   const [entries, setEntries] = useState<Entry[]>([])
   const [input, setInput] = useState('')
@@ -37,7 +37,7 @@ export function Ask({ onOpen, reviewedCount }: Props) {
   if (status && !status.configured) {
     return (
       <div className="ask">
-        <p className="hint">Chat over your reviewed notes needs a Gemini (AI Studio) or OpenRouter API key. It stays in <code>~/.config/skribble/ai.json</code> on this Mac.</p>
+        <p className="hint">Asking your brain needs a Gemini (AI Studio) or OpenRouter API key. It stays in <code>~/.config/skribble/ai.json</code> on this Mac.</p>
         <div className="ask-key">
           <input className="text-input" type="password" placeholder="AIza… or sk-or-v1-…" value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} />
           <button className="primary" disabled={!keyDraft.trim()} onClick={async () => setStatus(await window.notes.aiConfigure({ apiKey: keyDraft }))}>Save key</button>
@@ -57,7 +57,7 @@ export function Ask({ onOpen, reviewedCount }: Props) {
               {e.error ? <div>{e.text}</div> : <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(e.text) }} />}
               {e.sources && e.sources.length > 0 && (
                 <div className="ask-sources">
-                  {e.sources.map((s, i) => <button key={s.nodeId} className="ask-source" onClick={() => onOpen(s.noteId, s.label.split(' › ')[1])}><span className="n">{i + 1}</span>{s.label}</button>)}
+                  {e.sources.map((s, i) => <button key={s.nodeId} className="ask-source" onClick={() => onOpen(s.noteId, s.section)}><span className="n">{i + 1}</span>{s.label}</button>)}
                 </div>
               )}
             </div>
@@ -69,9 +69,9 @@ export function Ask({ onOpen, reviewedCount }: Props) {
         <MessageSquareText />
         <textarea
           rows={1}
-          placeholder={reviewedCount ? `Ask your ${reviewedCount} reviewed section${reviewedCount === 1 ? '' : 's'}… (what did I decide about onboarding? what keeps coming up?)` : 'Nothing reviewed yet. File a section and it becomes askable here.'}
+          placeholder={brainCount ? 'Ask your brain… what did I decide about onboarding? what keeps coming up?' : 'Your brain is empty. Absorb a note first.'}
           value={input}
-          disabled={busy || !reviewedCount}
+          disabled={busy || !brainCount}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
         />

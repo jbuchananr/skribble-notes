@@ -16,7 +16,7 @@ export const tokens = (s: string) => {
 }
 /** words that are the user's own writing, not template scaffolding (labels, empty todos, filing lines, rules) */
 export const substance = (text: string) => text.split('\n')
-  .filter((l) => !/^\s*(#{1,6}\s|Links:|Reviewed:|[-*]\s*\[[ x]\]\s*$|-{3,}\s*$|<\/?details|<summary)/i.test(l))
+  .filter((l) => !/^\s*(#{1,6}\s|[-*]\s*\[[ x]\]\s*$|-{3,}\s*$|<\/?details|<summary)/i.test(l))
   .join(' ').split(/\s+/).filter(Boolean).length
 export const MIN_WORDS = 12
 export const cut = (s: string, n: number) => (s.length <= n ? s : s.slice(0, n).replace(/\n[^\n]*$/, '') + '\n…')
