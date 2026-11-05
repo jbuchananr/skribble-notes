@@ -14,7 +14,7 @@ import { isReviewUnit } from '../../../core/review'
 import { ContextPanel, type PanelTab } from './ContextPanel'
 import type { EditorOps } from './editor-ops'
 import { TemplateMenu } from './TemplateMenu'
-import { Trash2, Pin, PinOff, Bold, Italic, Strikethrough, ListChecks, ArrowLeft, Link2, CheckCheck } from './Icons'
+import { Trash2, Pin, PinOff, Bold, Italic, Strikethrough, ListChecks, ArrowLeft, CheckCheck } from './Icons'
 
 /** Apple Notes-style formatting shortcuts. */
 const Shortcuts = Extension.create({
@@ -52,7 +52,7 @@ const SERIALIZE_DELAY = 300
 export function Editor({ note, saving, initialSection, onChange, onDelete, onBack, graph, onOpenNote }: Props) {
   const titleRef = useRef<HTMLTextAreaElement>(null)
   const [panel, setPanel] = useState(initialSection != null)
-  const [panelTab, setPanelTab] = useState<PanelTab>(initialSection != null ? 'file' : 'context')
+  const [panelTab, setPanelTab] = useState<PanelTab>('file')
   // last HTML we handed to the app; lets us tell our own saves from edits made on disk (MCP write, import)
   const lastHtml = useRef(note.content)
   const serializeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -221,7 +221,6 @@ export function Editor({ note, saving, initialSection, onChange, onDelete, onBac
   }, [editor, initialSection]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const mine = graph.filter((g) => g.noteId === note.id)
-  const linkCount = new Set(mine.flatMap((m) => [...m.links, ...m.backlinks])).size
   const pendingHere = mine.filter((g) => !g.reviewed && isReviewUnit(g, graph)).length
   const reviewedHere = mine.filter((g) => g.reviewed && isReviewUnit(g, graph)).length
 
@@ -248,11 +247,8 @@ export function Editor({ note, saving, initialSection, onChange, onDelete, onBac
           </div>
         )}
         <TemplateMenu onInsert={insertTemplate} currentMarkdown={() => htmlToMd(editor?.getHTML() ?? '')} currentTitle={note.title} />
-        <button className={`icon-btn ${panel && panelTab === 'file' ? 'on' : ''}`} onClick={() => { if (panel && panelTab === 'file') setPanel(false); else { setPanelTab('file'); setPanel(true) } }} title="File & review this note  ⇧⌘F">
+        <button className={`icon-btn ${panel ? 'on' : ''}`} onClick={() => setPanel((v) => !v)} title="File, outline & links  ⇧⌘I">
           <CheckCheck />{pendingHere > 0 && <span className="badge">{pendingHere}</span>}
-        </button>
-        <button className={`icon-btn ${panel && panelTab === 'context' ? 'on' : ''}`} onClick={() => { if (panel && panelTab === 'context') setPanel(false); else { setPanelTab('context'); setPanel(true) } }} title="Outline, links & tags  ⇧⌘I">
-          <Link2 />{linkCount > 0 && <span className="badge">{linkCount}</span>}
         </button>
         <button className="icon-btn" onClick={() => onChange({ pinned: !note.pinned })} title={note.pinned ? 'Unpin' : 'Pin'}>
           {note.pinned ? <PinOff /> : <Pin />}
