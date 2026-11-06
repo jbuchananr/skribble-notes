@@ -221,4 +221,6 @@ export interface NotesApi {
   onWikiChanged: (cb: () => void) => () => void
   onMenu: (cb: (action: string) => void) => () => void
   onNotesChanged: (cb: () => void) => () => void
+  /** the system spellchecker (macOS), for autocorrect */
+  spell: { misspelled: (word: string) => boolean; suggestions: (word: string) => string[] }
 }

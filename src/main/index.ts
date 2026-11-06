@@ -205,6 +205,19 @@ function createWindow() {
   })
   win.on('ready-to-show', () => win?.show())
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
+  // right-click: spelling suggestions and Learn Spelling for a misspelled word, then the usual edit items
+  win.webContents.on('context-menu', (_e, params) => {
+    const wc = win!.webContents
+    const items: Electron.MenuItemConstructorOptions[] = []
+    if (params.misspelledWord) {
+      for (const s of params.dictionarySuggestions.slice(0, 5)) items.push({ label: s, click: () => wc.replaceMisspelling(s) })
+      if (!params.dictionarySuggestions.length) items.push({ label: 'No guesses found', enabled: false })
+      items.push({ label: 'Learn Spelling', click: () => wc.session.addWordToSpellCheckerDictionary(params.misspelledWord) }, { type: 'separator' })
+    }
+    if (params.isEditable) items.push({ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { type: 'separator' }, { role: 'selectAll' })
+    else if (params.selectionText.trim()) items.push({ role: 'copy' })
+    if (items.length) Menu.buildFromTemplate(items).popup({ window: win! })
+  })
   if (process.env['ELECTRON_RENDERER_URL']) win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   else win.loadFile(join(__dirname, '../renderer/index.html'))
 }

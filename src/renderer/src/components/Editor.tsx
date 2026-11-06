@@ -15,6 +15,7 @@ import { renderTemplate } from '../../../core/template-render'
 import { isUnit } from '../../../core/inbox'
 import { CopyButton } from './CopyButton'
 import { noteMarkdown } from '@/lib/copy'
+import { Autocorrect } from '@/lib/autocorrect'
 import { Trash2, Bold, Italic, Strikethrough, ListChecks } from './Icons'
 
 /** Apple Notes-style formatting shortcuts. */
@@ -105,6 +106,7 @@ export function Editor({ note, saving, initialSection, graph, onChange, onDelete
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: true, autolink: true } }),
       Shortcuts,
+      Autocorrect,
       HeadingStatus,
       Placeholder.configure({ placeholder: 'Start writing…' }),
       TaskList,

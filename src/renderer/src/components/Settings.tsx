@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { AiStatus, WikiStatus } from '../../../shared/types'
-import { X, BookOpen, RefreshCw, Check } from './Icons'
+import { X, BookOpen, RefreshCw, Check, Pencil } from './Icons'
+import { autocorrectEnabled, setAutocorrectEnabled } from '@/lib/autocorrect'
 
 interface Props { onClose: () => void }
 
@@ -13,6 +14,7 @@ export function Settings({ onClose }: Props) {
   const [wiki, setWiki] = useState<WikiStatus | null>(null)
   const [dir, setDir] = useState('')
   const [log, setLog] = useState('')
+  const [autocorrect, setAutocorrect] = useState(autocorrectEnabled)
 
   const refresh = () => { window.notes.aiStatus().then((s) => { setAi(s); setModel((m) => m || s.model || '') }); window.notes.wikiStatus().then(setWiki); window.notes.wikiLog().then(setLog) }
   useEffect(() => { refresh(); window.notes.notesDir().then(setDir) }, [])
@@ -46,6 +48,15 @@ export function Settings({ onClose }: Props) {
             <button className="btn-primary" disabled={!key.trim() && !ai?.configured} onClick={save}>{saved ? <><Check /> Saved</> : 'Save'}</button>
             <span className="hint">{ai?.configured ? `Configured · ${provider ?? ''} · ${ai.model}` : 'No key yet. Absorbing works without one; the wiki and chat need it.'}</span>
           </div>
+        </section>
+
+        <section>
+          <h3><Pencil /> Writing</h3>
+          <label className="settings-check">
+            <input type="checkbox" checked={autocorrect} onChange={(e) => { setAutocorrectEnabled(e.target.checked); setAutocorrect(e.target.checked) }} />
+            <span>Autocorrect spelling as you type</span>
+          </label>
+          <p className="hint">A misspelled word is fixed when you finish it. Backspace right after puts back what you typed. Names, acronyms and words you already use in your notes are left alone. Right-click a word underlined in red for suggestions or Learn Spelling.</p>
         </section>
 
         <section>

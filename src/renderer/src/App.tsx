@@ -13,6 +13,7 @@ import { Settings } from './components/Settings'
 import { ImportModal } from './components/ImportModal'
 import { newNote, htmlToText } from './lib/notes'
 import { inbox } from '../../core/inbox'
+import { setVocabulary } from './lib/autocorrect'
 
 type Mode =
   | { kind: 'notes' }
@@ -148,6 +149,12 @@ export default function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [mode, leaveEditor, settings])
+
+  // autocorrect leaves alone words you already use; rebuild that list a moment after notes settle
+  useEffect(() => {
+    const t = setTimeout(() => setVocabulary(notes.map((n) => `${n.title} ${n.text ?? ''}`)), 1500)
+    return () => clearTimeout(t)
+  }, [notes])
 
   const queue = useMemo(() => inbox(graph), [graph])
   const nav: Nav | null = mode.kind === 'notes' ? { kind: 'notes' } : mode.kind === 'files' ? { kind: 'files' } : mode.kind === 'actions' ? { kind: 'actions' } : mode.kind === 'wiki' ? { kind: 'wiki' } : mode.kind === 'page' ? { kind: 'page', slug: mode.slug } : mode.kind === 'absorb' ? { kind: 'notes' } : null

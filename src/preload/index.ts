@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
 import type { NotesApi, Note, Template, SuggestRequest, AbsorbRequest, AskRequest, ActionsEdit } from '../shared/types'
 
 const on = (channel: string) => (cb: (...a: never[]) => void) => {
@@ -32,7 +32,11 @@ const api: NotesApi = {
   editActions: (edit: ActionsEdit) => ipcRenderer.invoke('actions:edit', edit),
   onWikiChanged: on('wiki-changed'),
   onMenu: on('menu'),
-  onNotesChanged: on('notes-changed')
+  onNotesChanged: on('notes-changed'),
+  spell: {
+    misspelled: (word: string) => webFrame.isWordMisspelled(word),
+    suggestions: (word: string) => webFrame.getWordSuggestions(word)
+  }
 }
 
 contextBridge.exposeInMainWorld('notes', api)

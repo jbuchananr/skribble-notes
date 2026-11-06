@@ -59,6 +59,8 @@ To use the same notes on another machine, put `~/Notes` in a synced folder (or a
 
 Markdown shortcuts work too: `# ` headings, `- ` bullets, `[ ] ` todos.
 
+Autocorrect fixes a misspelled word when you finish it, using the macOS spellchecker. Backspace right after puts back what you typed. Capitalized names, acronyms, code-like words and words that appear in two or more of your notes are left alone. Right-click a word underlined in red for suggestions or Learn Spelling. Turn it off in Settings.
+
 ## Where notes live
 
 Each note is a markdown file with frontmatter in `~/Notes` (override with `NOTES_DIR`). Templates are in `~/Notes/.templates/*.md`. The wiki is `~/Notes/wiki/` (`WIKI.md`, `index.md`, `log.md`, `pages/*.md`, all plain markdown; `.ingested.json` tracks which absorbed sections are in). File → Reveal Notes Folder / Reveal Wiki Folder open them in Finder. There are no folders in the app itself.
