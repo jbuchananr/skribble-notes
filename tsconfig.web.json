@@ -12,5 +12,5 @@
     "composite": true,
     "paths": { "@/*": ["./src/renderer/src/*"] }
   },
-  "include": ["src/renderer/src/**/*", "src/preload/*.d.ts", "src/shared/**/*", "src/core/markdown.ts", "src/core/template-render.ts", "src/core/absorb.ts", "src/core/inbox.ts", "src/core/sections.ts"]
+  "include": ["src/renderer/src/**/*", "src/preload/*.d.ts", "src/shared/**/*", "src/core/markdown.ts", "src/core/template-render.ts", "src/core/absorb.ts", "src/core/inbox.ts", "src/core/insight-titles.ts", "src/core/sections.ts"]
 }

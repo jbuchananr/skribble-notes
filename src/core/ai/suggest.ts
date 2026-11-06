@@ -12,7 +12,7 @@ import { chat, type ChatMessage } from './openrouter'
 import type { AiConfig } from './config'
 
 const MAX_CANDIDATES = 10
-const SECTION_CAP = 6000
+const SECTION_CAP = 12000 // a whole note
 const MAX_TAGS_SHOWN = 40
 
 const SYSTEM = `You file sections of a person's notes into their personal knowledge graph. You are a librarian, not an author: you never rewrite or summarize their notes, you only say what connects to what.

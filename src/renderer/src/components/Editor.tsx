@@ -155,7 +155,7 @@ export function Editor({ note, saving, initialSection, graph, onChange, onDelete
   useEffect(() => {
     if (!editor) return
     const status: Status = new Map()
-    for (const g of graph) if (g.noteId === note.id && g.section && g.level <= 2 && isUnit(g, graph)) status.set(g.section, { absorbed: g.absorbed })
+    // a note is absorbed as a whole, so headings carry no tag; the note's tag sits under the title
     editor.view.dispatch(editor.state.tr.setMeta(statusKey, status))
   }, [editor, graph, note.id, note.content])
 
@@ -220,8 +220,7 @@ export function Editor({ note, saving, initialSection, graph, onChange, onDelete
   }, [insertTemplate])
 
   const mine = graph.filter((g) => g.noteId === note.id)
-  const headingless = !mine.some((g) => g.level > 0)
-  const whole = headingless ? mine.find((g) => g.level === 0 && isUnit(g, graph)) : undefined
+  const whole = mine.find((g) => g.level === 0 && isUnit(g, graph))
 
   const Btn = ({ on, onClick, title, children }: { on?: boolean; onClick: () => void; title: string; children: ReactNode }) => (
     <button className={on ? 'on' : ''} onMouseDown={(e) => { e.preventDefault(); onClick() }} title={title}>{children}</button>

@@ -1,4 +1,4 @@
-import type { GraphNode } from '../shared/types'
+import type { Absorbed, GraphNode } from '../shared/types'
 import type { StoredNote } from './store'
 import { extractTags, mdToText } from './markdown'
 import { parseSections } from './sections'
@@ -6,10 +6,14 @@ import { getAbsorbed } from './absorb'
 
 export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 
-export const INSIGHT_TITLES = new Set(['insights', 'learnings', 'insights & learnings', 'insights and learnings', 'key learnings'])
-export const isInsightsNote = (n: { title: string }) => INSIGHT_TITLES.has(n.title.trim().toLowerCase())
+import { INSIGHT_TITLES, isInsightsNote } from './insight-titles'
+export { INSIGHT_TITLES, isInsightsNote }
 
-/** Build the graph with one node per section (plus one for text before the first heading). */
+/**
+ * Build the graph with one node per note (level 0) plus one per section. A note is absorbed as a whole;
+ * its absorb record has no section. Notes absorbed section by section before that count as absorbed once
+ * every H1/H2 section with text was absorbed.
+ */
 export function buildGraph(notes: StoredNote[]): GraphNode[] {
   const nodes: GraphNode[] = []
   const byNoteTitle = new Map<string, string>()
@@ -26,8 +30,8 @@ export function buildGraph(notes: StoredNote[]): GraphNode[] {
     const lines = n.body.split('\n')
     const preambleEnd = sections[0]?.start ?? lines.length
     const preamble = lines.slice(0, preambleEnd).join('\n')
-    const pre = sections.length ? undefined : getAbsorbed(n.absorbed)
-    nodes.push({ id: n.id, noteId: n.id, noteTitle: title, level: 0, tags: [...new Set([...extractTags(preamble), ...(pre?.tags ?? [])])], links: [], backlinks: [], absorbed: pre?.date, preview: mdToText(preamble).slice(0, 140), updatedAt: n.updatedAt, ...system })
+    const pre = getAbsorbed(n.absorbed) ?? legacyWhole(n, sections)
+    nodes.push({ id: n.id, noteId: n.id, noteTitle: title, level: 0, tags: [...new Set([...extractTags(n.body), ...(pre?.tags ?? [])])], links: [], backlinks: [], absorbed: pre?.date, preview: mdToText(n.body).slice(0, 140), updatedAt: n.updatedAt, ...system })
     bodies.set(n.id, preamble)
     if (pre) extraLinks.set(n.id, pre.links)
     for (const sec of sections) {
@@ -36,7 +40,7 @@ export function buildGraph(notes: StoredNote[]): GraphNode[] {
       const node: GraphNode = {
         id, noteId: n.id, noteTitle: title, section: sec.heading, level: sec.level, date: sec.date,
         tags: [...new Set([...extractTags(sec.text), ...(a?.tags ?? [])])], links: [], backlinks: [],
-        absorbed: a?.date, preview: mdToText(sec.text).slice(0, 140), updatedAt: n.updatedAt,
+        absorbed: a?.date ?? pre?.date, preview: mdToText(sec.text).slice(0, 140), updatedAt: n.updatedAt,
         ...(insights && sec.level === 3 ? { insight: true } : {}),
         ...system
       }
@@ -72,6 +76,16 @@ export function buildGraph(notes: StoredNote[]): GraphNode[] {
     }
   }
   return nodes
+}
+
+/** A note absorbed section by section (the old way) counts as absorbed when none of its sections is left. */
+function legacyWhole(n: StoredNote, sections: ReturnType<typeof parseSections>): Absorbed | undefined {
+  const units = sections.filter((s) => s.level <= 2 && mdToText(s.text).trim())
+  if (!units.length) return undefined
+  const entries = units.map((s) => getAbsorbed(n.absorbed, s.heading))
+  if (entries.some((e) => !e)) return undefined
+  const date = entries.map((e) => e!.date).sort().at(-1)!
+  return { date, links: [...new Set(entries.flatMap((e) => e!.links))], tags: [...new Set(entries.flatMap((e) => e!.tags))] }
 }
 
 export function nodesForNote(graph: GraphNode[], noteId: string) {

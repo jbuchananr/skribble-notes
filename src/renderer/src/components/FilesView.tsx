@@ -19,7 +19,7 @@ export function FilesView({ notes, graph, onOpen }: Props) {
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
 
-  // per note: how many of its sections are still waiting to be absorbed, and how many are done
+  // per note: waiting to be absorbed, or done
   const status = useMemo(() => {
     const out = new Map<string, { waiting: number; done: number }>()
     for (const g of graph) {
@@ -56,7 +56,7 @@ export function FilesView({ notes, graph, onOpen }: Props) {
         <div className="doc-grid">
           {shown.map((n) => {
             const s = status.get(n.id)
-            const state = s ? (s.waiting > 0 ? `${s.waiting} to absorb` : s.done > 0 ? 'Absorbed' : '') : ''
+            const state = s ? (s.waiting > 0 ? 'To absorb' : s.done > 0 ? 'Absorbed' : '') : ''
             return (
               <div key={n.id} className="doc-card-wrap">
                 <button className="doc-card" onClick={() => onOpen(n.id)}>

@@ -5,7 +5,6 @@
 import type { AskRequest, AskResult, AskSource, WikiPage } from '../../shared/types'
 import type { StoredNote } from '../store'
 import { buildGraph, isInsightsNote } from '../graph'
-import { isUnit } from '../inbox'
 import { unitsOf, tokens, scoreUnit, cut, RELATED_CAP, substance } from './context'
 import { chat, type ChatMessage } from './openrouter'
 import type { AiConfig } from './config'
@@ -24,7 +23,7 @@ export function wikiPassages(notes: StoredNote[], pages: WikiPage[]): Passage[] 
       const node = graph.find((g) => g.id === u.id)
       if (!node) continue
       if (insights) out.push({ id: u.id, noteId: n.id, section: u.heading, label: u.label, text: u.text, kind: 'insight' })
-      else if (node.absorbed && isUnit(node, graph)) out.push({ id: u.id, noteId: n.id, section: u.heading, label: u.label, text: u.text, absorbed: node.absorbed, kind: 'unit' })
+      else if (node.absorbed && !node.system) out.push({ id: u.id, noteId: n.id, section: u.heading, label: u.label, text: u.text, absorbed: node.absorbed, kind: 'unit' })
     }
   }
   return out

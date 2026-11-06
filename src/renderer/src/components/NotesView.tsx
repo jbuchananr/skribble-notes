@@ -1,11 +1,10 @@
 import { forwardRef, useMemo } from 'react'
 import type { GraphNode, Note } from '../../../shared/types'
 import { groupLabel, shortTime } from '@/lib/dates'
-import { displayTitle } from '@/lib/notes'
 import { inbox, unitTime } from '../../../core/inbox'
-import { Search, ChevronRight, BookOpen, Pin, CornerDownLeft, Plus } from './Icons'
+import { Search, ChevronRight, BookOpen, CornerDownLeft, Plus } from './Icons'
 import { CopyButton } from './CopyButton'
-import { sectionMarkdown, noteMarkdown } from '@/lib/copy'
+import { sectionMarkdown } from '@/lib/copy'
 
 interface Props {
   notes: Note[]
@@ -17,7 +16,7 @@ interface Props {
   onNew: () => void
 }
 
-/** Notes = anything you have written and not yet sent to the wiki. Search reaches every note. */
+/** Notes = anything you have written and not yet sent to the wiki. Search covers only these; Files searches everything. */
 export const NotesView = forwardRef<HTMLInputElement, Props>(function NotesView({ notes, graph, query, setQuery, onAbsorb, onOpen, onNew }, searchRef) {
   const q = query.trim().toLowerCase()
   const queue = useMemo(() => inbox(graph), [graph])
@@ -31,8 +30,6 @@ export const NotesView = forwardRef<HTMLInputElement, Props>(function NotesView(
     }
     return out
   }, [shown])
-  // with a query, also surface whole notes (absorbed ones included) so anything can be reopened
-  const matchingNotes = q ? notes.filter((n) => n.title.toLowerCase().includes(q) || (n.text ?? '').toLowerCase().includes(q)) : []
 
   return (
     <div className="view">
@@ -49,7 +46,7 @@ export const NotesView = forwardRef<HTMLInputElement, Props>(function NotesView(
         {shown.length === 0 && (
           <div className="home-empty">
             <BookOpen />
-            <p>{q ? 'Nothing waiting matches.' : queue.length === 0 && notes.length > 0 ? 'All caught up. Everything you wrote is in the wiki.' : 'Whatever you write lands here until you send it to the wiki. Press ⌘N to start a note.'}</p>
+            <p>{q ? 'No notes match. Absorbed notes are in Files.' : queue.length === 0 && notes.length > 0 ? 'All caught up. Everything you wrote is in the wiki.' : 'Whatever you write lands here until you send it to the wiki. Press ⌘N to start a note.'}</p>
           </div>
         )}
         {groups.map((g) => (
@@ -75,22 +72,6 @@ export const NotesView = forwardRef<HTMLInputElement, Props>(function NotesView(
           </section>
         ))}
 
-        {matchingNotes.length > 0 && (
-          <section className="group">
-            <h2>Open a note</h2>
-            <div className="cards">
-              {matchingNotes.map((n) => (
-                <div key={n.id} className="card-row">
-                  <button className="card" onClick={() => onOpen(n.id)}>
-                    <div className="card-top"><span className="card-title">{n.pinned && <Pin />}{displayTitle(n)}</span><span className="card-time">{shortTime(n.updatedAt)}</span></div>
-                    <div className="card-snippet">{n.preview || 'No additional text'}</div>
-                  </button>
-                  <div className="card-actions"><CopyButton title="Copy note as markdown" text={() => noteMarkdown(n)} /></div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
       </div>
     </div>
   )

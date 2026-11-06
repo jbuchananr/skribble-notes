@@ -13,7 +13,7 @@ import type { AiConfig } from './config'
 
 const MAX_RELATED_PAGES = 6
 const PAGE_CAP = 2500
-const SECTION_CAP = 6000
+const SECTION_CAP = 24000 // a whole note
 
 const SYSTEM = `You maintain a personal wiki derived from one person's notes. You are the bookkeeper, not the author of their thinking: pages record what THEIR notes say, cite where, and quote their typed takeaways verbatim. Never add outside knowledge, never smooth over a contradiction, never invent a source.
 

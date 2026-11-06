@@ -1,19 +1,16 @@
 /**
- * Inbox and brain. Every H1/H2 section you write (or a note without headings) is a unit; it sits in
- * the inbox until absorbed. Depends only on the graph, so the renderer can use it.
+ * Inbox and brain. Each note is one unit, headings or not; it sits in the inbox until absorbed.
+ * Depends only on the graph, so the renderer can use it.
  */
 import type { GraphNode } from '../shared/types'
+import { isInsightsNote } from './insight-titles'
 
 const hasText = (s: string) => s.replace(/\u00a0/g, ' ').trim().length > 0
 
-/** Any section with text in it is a unit, however short. A note with no headings is one unit once it has a title or text. */
-export function isUnit(node: GraphNode, graph: GraphNode[]): boolean {
-  if (node.insight || node.system) return false
-  if (node.level === 0) {
-    // the preamble counts only for notes that have no sections at all
-    return !graph.some((g) => g.noteId === node.noteId && g.level > 0) && (hasText(node.preview) || hasText(node.noteTitle))
-  }
-  return node.level <= 2 && hasText(node.preview)
+/** A note is the unit, however many headings it has, once it has a title or text. The Insights note is not one. */
+export function isUnit(node: GraphNode, _graph?: GraphNode[]): boolean {
+  if (node.insight || node.system || node.level !== 0 || isInsightsNote({ title: node.noteTitle })) return false
+  return hasText(node.preview) || hasText(node.noteTitle)
 }
 
 /** when the unit happened: the date in its heading, else the note's last edit */

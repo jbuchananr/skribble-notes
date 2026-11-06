@@ -56,7 +56,7 @@ export function parseSections(body: string): Section[] {
 export function unitMarkdown(body: string, heading: string | undefined): string | null {
   const lines = body.split('\n')
   const sections = parseSections(body)
-  if (!heading) return lines.slice(0, sections[0]?.start ?? lines.length).join('\n')
+  if (!heading) return body // the whole note
   const i = sections.findIndex((s) => s.heading === heading)
   if (i < 0) return null
   const sec = sections[i]
