@@ -3,7 +3,7 @@ import type { GraphNode, Note } from '../../../shared/types'
 import { groupLabel, shortTime } from '@/lib/dates'
 import { displayTitle } from '@/lib/notes'
 import { inbox, unitTime } from '../../../core/inbox'
-import { Search, ChevronRight, BookOpen, Pin, CornerDownLeft } from './Icons'
+import { Search, ChevronRight, BookOpen, Pin, CornerDownLeft, Plus } from './Icons'
 import { CopyButton } from './CopyButton'
 import { sectionMarkdown, noteMarkdown } from '@/lib/copy'
 
@@ -14,10 +14,11 @@ interface Props {
   setQuery: (q: string) => void
   onAbsorb: (node: GraphNode) => void
   onOpen: (id: string, section?: string) => void
+  onNew: () => void
 }
 
 /** Notes = anything you have written and not yet sent to the wiki. Search reaches every note. */
-export const NotesView = forwardRef<HTMLInputElement, Props>(function NotesView({ notes, graph, query, setQuery, onAbsorb, onOpen }, searchRef) {
+export const NotesView = forwardRef<HTMLInputElement, Props>(function NotesView({ notes, graph, query, setQuery, onAbsorb, onOpen, onNew }, searchRef) {
   const q = query.trim().toLowerCase()
   const queue = useMemo(() => inbox(graph), [graph])
   const shown = queue.filter((n) => !q || n.noteTitle.toLowerCase().includes(q) || (n.section ?? '').toLowerCase().includes(q) || n.preview.toLowerCase().includes(q) || n.tags.some((t) => t.includes(q)))
@@ -37,10 +38,13 @@ export const NotesView = forwardRef<HTMLInputElement, Props>(function NotesView(
     <div className="view">
       <div className="view-inner">
         <h1 className="view-title">Notes</h1>
-        <label className="search">
-          <Search />
-          <input ref={searchRef} placeholder="Search notes" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') { setQuery(''); (e.target as HTMLInputElement).blur() } }} />
-        </label>
+        <div className="search-row">
+          <label className="search">
+            <Search />
+            <input ref={searchRef} placeholder="Search notes" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') { setQuery(''); (e.target as HTMLInputElement).blur() } }} />
+          </label>
+          <button className="btn-primary" onClick={onNew} title="New note (⌘N)"><Plus /> New note</button>
+        </div>
 
         {shown.length === 0 && (
           <div className="home-empty">
