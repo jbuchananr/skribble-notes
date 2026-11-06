@@ -238,8 +238,11 @@ export function Editor({ note, saving, initialSection, graph, onChange, onDelete
             <Btn on={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()} title="Todo  ⇧⌘L"><ListChecks /></Btn>
           </div>
         )}
-        <CopyButton title="Copy note as markdown" text={() => noteMarkdown({ ...note, content: editor?.getHTML() ?? note.content })} />
-        <button className="icon-btn" onClick={onDelete} title="Delete note (⌘⌫)"><Trash2 /></button>
+        {!editor && <span />}
+        <div className="toolbar-end">
+          <CopyButton title="Copy note as markdown" text={() => noteMarkdown({ ...note, content: editor?.getHTML() ?? note.content })} />
+          <button className="icon-btn" onClick={onDelete} title="Delete note (⌘⌫)"><Trash2 /></button>
+        </div>
       </div>
       <div className="editor-scroll">
         <div className="editor-inner">
