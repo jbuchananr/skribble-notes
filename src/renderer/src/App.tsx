@@ -228,9 +228,10 @@ export default function App() {
 
   return (
     <div className={`shell ${collapsed ? 'collapsed' : ''}`}>
-      {!collapsed && <Sidebar nav={nav} notesCount={queue.length} actionsCount={actionsCount} pages={pages} wikiBusy={!!wikiStatus?.busy} onNav={navigate} onNew={createNote} onCollapse={mode.kind === 'edit' ? undefined : toggleSidebar} />}
+      {!collapsed && <Sidebar nav={nav} notesCount={queue.length} actionsCount={actionsCount} pages={pages} wikiBusy={!!wikiStatus?.busy} onNav={navigate} onNew={createNote} />}
       <main className="main">
-        {collapsed && mode.kind !== 'edit' && <div className="collapsed-bar">{showSidebarBtn}</div>}
+        {/* the sidebar toggle sits at the top left of the main pane on every page; the editor puts it in its toolbar, beside Saved */}
+        {mode.kind !== 'edit' && <div className="main-bar">{sidebarToggle}</div>}
         <Fragment key={mode.kind === 'page' ? `page:${mode.slug}` : mode.kind === 'edit' ? `edit:${mode.id}` : mode.kind}>{main}</Fragment>
       </main>
       {importing && <ImportModal onClose={() => setImporting(false)} onDone={(n) => { setImporting(false); reload(); if (n) alert(`Imported ${n} note${n === 1 ? '' : 's'} from Apple Notes.`) }} />}

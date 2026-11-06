@@ -644,11 +644,12 @@ button.primary:disabled { opacity: 0.5; }
 
 /* ---- collapsible sidebar ---- */
 .sidebar-brand > span { flex: 1; }
-.sidebar-toggle { -webkit-app-region: no-drag; width: 26px; height: 26px; color: var(--text-3); }
 .shell.collapsed { grid-template-columns: minmax(0, 1fr); }
-.shell.collapsed .collapsed-bar + * { height: calc(100% - 40px); }
-.collapsed-bar { height: 40px; flex: none; display: flex; align-items: center; padding: 6px 0 0 84px; -webkit-app-region: drag; }
-.collapsed-bar .icon-btn { -webkit-app-region: no-drag; color: var(--text-3); }
+.main-bar + * { height: calc(100% - 52px); }
+/* same height and left edge as the editor toolbar, so the toggle never moves between pages */
+.main-bar { height: 52px; flex: none; display: flex; align-items: center; padding-left: 12px; -webkit-app-region: drag; }
+.shell.collapsed .main-bar { padding-left: 80px; }
+.main-bar .icon-btn { -webkit-app-region: no-drag; color: var(--text-3); }
 
 /* ---- actions ---- */
 .act-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }

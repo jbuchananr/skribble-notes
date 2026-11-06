@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { WikiPage as Page } from '../../../shared/types'
 import { mdToHtml } from '../../../core/markdown'
-import { ArrowLeft, BookOpen } from './Icons'
+import { BookOpen } from './Icons'
 
 interface Props {
   slug: string
@@ -42,9 +42,6 @@ export function WikiPageView({ slug, onBack, onOpenSource, onOpenPage }: Props) 
 
   return (
     <div className="wiki-page">
-      <div className="absorb-top">
-        <button className="back" onClick={onBack} title="Back (Esc)"><ArrowLeft /> Wiki</button>
-      </div>
       <div className="wiki-page-scroll">
         <div className="wiki-page-inner">
           {page === undefined && <p className="hint">Loading…</p>}
