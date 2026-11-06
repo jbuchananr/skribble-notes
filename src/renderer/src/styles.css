@@ -649,6 +649,7 @@ button.primary:disabled { opacity: 0.5; }
 .shell.collapsed .collapsed-bar + * { height: calc(100% - 40px); }
 .collapsed-bar { height: 40px; flex: none; display: flex; align-items: center; padding: 6px 0 0 84px; -webkit-app-region: drag; }
 .collapsed-bar .icon-btn { -webkit-app-region: no-drag; color: var(--text-3); }
+.collapsed-bar { gap: 2px; }
 
 /* ---- actions ---- */
 .act-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
