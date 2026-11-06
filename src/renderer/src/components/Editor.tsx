@@ -88,11 +88,13 @@ interface Props {
   onChange: (patch: Partial<Note>) => void
   onDelete: () => void
   onAbsorb: (section?: string) => void
+  /** shown before "Saved", e.g. the show-sidebar button when the sidebar is hidden */
+  leading?: ReactNode
 }
 
 const SERIALIZE_DELAY = 300
 
-export function Editor({ note, saving, initialSection, graph, onChange, onDelete, onAbsorb }: Props) {
+export function Editor({ note, saving, initialSection, graph, onChange, onDelete, onAbsorb, leading }: Props) {
   const titleRef = useRef<HTMLTextAreaElement>(null)
   // last HTML we handed to the app; lets us tell our own saves from edits made on disk (MCP write, import, absorb)
   const lastHtml = useRef(note.content)
@@ -225,8 +227,8 @@ export function Editor({ note, saving, initialSection, graph, onChange, onDelete
 
   return (
     <div className="editor-pane">
-      <div className="editor-toolbar">
-        <span className="saved">{saving ? 'Saving…' : 'Saved'}</span>
+      <div className={`editor-toolbar ${leading ? 'has-lead' : ''}`}>
+        <div className="toolbar-start">{leading}<span className="saved">{saving ? 'Saving…' : 'Saved'}</span></div>
         {editor && (
           <div className="format-bar">
             <Btn on={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold  ⌘B"><Bold /></Btn>

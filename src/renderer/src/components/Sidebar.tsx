@@ -3,7 +3,7 @@ import { FileText, BookOpen, Plus, Settings as SettingsIcon, RefreshCw, Files, P
 import logo from '../../../../assets/logo-mark.png'
 import { ACTIONS_ENABLED } from '../../../shared/features'
 
-export type Nav = { kind: 'notes' } | { kind: 'actions' } | { kind: 'files' } | { kind: 'wiki' } | { kind: 'page'; slug: string }
+export type Nav = { kind: 'notes' } | { kind: 'actions' } | { kind: 'files' } | { kind: 'wiki' } | { kind: 'settings' } | { kind: 'page'; slug: string }
 
 interface Props {
   nav: Nav | null
@@ -13,14 +13,13 @@ interface Props {
   wikiBusy: boolean
   onNav: (n: Nav) => void
   onNew: () => void
-  onSettings: () => void
   onCollapse: () => void
 }
 
 const KIND_ORDER: WikiPage['kind'][] = ['person', 'project', 'decision', 'concept', 'topic']
 const KIND_LABEL: Record<WikiPage['kind'], string> = { person: 'People', project: 'Projects', decision: 'Decisions', concept: 'Concepts', topic: 'Topics' }
 
-export function Sidebar({ nav, notesCount, actionsCount, pages, wikiBusy, onNav, onNew, onSettings, onCollapse }: Props) {
+export function Sidebar({ nav, notesCount, actionsCount, pages, wikiBusy, onNav, onNew, onCollapse }: Props) {
   const on = (k: Nav['kind']) => nav?.kind === k
   return (
     <aside className="sidebar">
@@ -63,7 +62,7 @@ export function Sidebar({ nav, notesCount, actionsCount, pages, wikiBusy, onNav,
       </nav>
       <div className="side-foot">
         <button className="side-item" onClick={onNew} title="New note (⌘N)"><Plus /> <span>New note</span></button>
-        <button className="side-item" onClick={onSettings} title="Settings (⌘,)"><SettingsIcon /> <span>Settings</span></button>
+        <button className={`side-item ${on('settings') ? 'on' : ''}`} onClick={() => onNav({ kind: 'settings' })} title="Settings (⌘,)"><SettingsIcon /> <span>Settings</span></button>
       </div>
     </aside>
   )

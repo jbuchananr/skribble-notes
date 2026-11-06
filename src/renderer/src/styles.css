@@ -134,7 +134,12 @@ input { font: inherit; color: inherit; }
   -webkit-app-region: drag;
 }
 .editor-toolbar > * { -webkit-app-region: no-drag; }
-.editor-toolbar .saved { justify-self: start; font-size: 12px; color: var(--text-3); padding-left: 10px; }
+.toolbar-start { justify-self: start; display: flex; align-items: center; gap: 6px; }
+.editor-toolbar .saved { font-size: 12px; color: var(--text-3); padding-left: 10px; }
+/* sidebar hidden: clear the traffic lights, then the show-sidebar button sits beside Saved */
+.editor-toolbar.has-lead { padding-left: 80px; }
+.editor-toolbar.has-lead .saved { padding-left: 0; }
+.show-sidebar { color: var(--text-3); }
 .toolbar-end { justify-self: end; display: flex; align-items: center; gap: 4px; }
 .editor-scroll { flex: 1; overflow-y: auto; }
 .editor-inner { max-width: 720px; margin: 0 auto; padding: 24px 56px 120px; user-select: text; }
@@ -540,10 +545,8 @@ button.primary:disabled { opacity: 0.5; }
 .wiki-sources { margin-top: 32px; border-top: 1px solid var(--border); padding-top: 14px; display: flex; flex-direction: column; gap: 4px; }
 .wiki-sources h3 { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-3); margin: 0 0 6px; }
 .absorb-crumb svg { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
-.settings-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: grid; place-items: center; z-index: 50; }
-.settings { width: min(560px, 92vw); max-height: 86vh; overflow-y: auto; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px; padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-.settings-head { display: flex; align-items: center; justify-content: space-between; }
-.settings-head h2 { margin: 0; font-size: 17px; font-weight: 700; }
+.settings { display: flex; flex-direction: column; gap: 28px; }
+.settings .view-title { margin: 0; }
 .settings section { display: flex; flex-direction: column; gap: 10px; }
 .settings section h3 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-3); }
 .settings section h3 svg { width: 13px; height: 13px; }
@@ -643,7 +646,7 @@ button.primary:disabled { opacity: 0.5; }
 .sidebar-brand > span { flex: 1; }
 .sidebar-toggle { -webkit-app-region: no-drag; width: 26px; height: 26px; color: var(--text-3); }
 .shell.collapsed { grid-template-columns: minmax(0, 1fr); }
-.shell.collapsed .main > :last-child { height: calc(100% - 40px); }
+.shell.collapsed .collapsed-bar + * { height: calc(100% - 40px); }
 .collapsed-bar { height: 40px; flex: none; display: flex; align-items: center; padding: 6px 0 0 84px; -webkit-app-region: drag; }
 .collapsed-bar .icon-btn { -webkit-app-region: no-drag; color: var(--text-3); }
 

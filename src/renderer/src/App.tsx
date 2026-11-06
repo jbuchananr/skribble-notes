@@ -21,6 +21,7 @@ type Mode =
   | { kind: 'files' }
   | { kind: 'actions' }
   | { kind: 'wiki' }
+  | { kind: 'settings' }
   | { kind: 'page'; slug: string }
   | { kind: 'edit'; id: string; section?: string }
   | { kind: 'absorb'; nodeId: string; from: 'notes' | 'edit' }
@@ -34,7 +35,6 @@ export default function App() {
   const [pages, setPages] = useState<WikiPage[]>([])
   const [wikiStatus, setWikiStatus] = useState<WikiStatus | null>(null)
   const [importing, setImporting] = useState(false)
-  const [settings, setSettings] = useState(false)
   const [actionsCount, setActionsCount] = useState(0)
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('skribble:sidebar') === 'hidden' } catch { return false } })
   const toggleSidebar = useCallback(() => setCollapsed((c) => {
@@ -122,7 +122,7 @@ export default function App() {
     if (n) setMode({ kind: 'edit', id: n.id, section: section?.trim() || undefined })
   }, [notes])
   const navigate = useCallback((n: Nav) => {
-    const to: Mode = n.kind === 'page' ? { kind: 'page', slug: n.slug } : n.kind === 'wiki' ? { kind: 'wiki' } : n.kind === 'files' ? { kind: 'files' } : n.kind === 'actions' ? { kind: 'actions' } : { kind: 'notes' }
+    const to: Mode = n.kind === 'page' ? { kind: 'page', slug: n.slug } : n.kind === 'wiki' ? { kind: 'wiki' } : n.kind === 'files' ? { kind: 'files' } : n.kind === 'actions' ? { kind: 'actions' } : n.kind === 'settings' ? { kind: 'settings' } : { kind: 'notes' }
     if (mode.kind === 'edit') leaveEditor(to); else setMode(to)
   }, [mode, leaveEditor])
 
@@ -139,17 +139,17 @@ export default function App() {
         case 'view-actions': if (ACTIONS_ENABLED) navigate({ kind: 'actions' }); break
         case 'toggle-sidebar': toggleSidebar(); break
         case 'import-apple': setImporting(true); break
-        case 'settings': setSettings(true); break
+        case 'settings': navigate({ kind: 'settings' }); break
       }
     })
   }, [createNote, deleteNote, leaveEditor, navigate, mode, toggleSidebar])
 
   // Esc in the editor goes back to Notes (absorb and page views handle their own keys)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && mode.kind === 'edit' && !settings) { e.preventDefault(); leaveEditor() } }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && mode.kind === 'edit') { e.preventDefault(); leaveEditor() } }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [mode, leaveEditor, settings])
+  }, [mode, leaveEditor])
 
   // autocorrect leaves alone words you already use; rebuild that list a moment after notes settle
   useEffect(() => {
@@ -158,8 +158,9 @@ export default function App() {
   }, [notes])
 
   const queue = useMemo(() => inbox(graph), [graph])
-  const nav: Nav | null = mode.kind === 'notes' ? { kind: 'notes' } : mode.kind === 'files' ? { kind: 'files' } : mode.kind === 'actions' ? { kind: 'actions' } : mode.kind === 'wiki' ? { kind: 'wiki' } : mode.kind === 'page' ? { kind: 'page', slug: mode.slug } : mode.kind === 'absorb' ? { kind: 'notes' } : null
+  const nav: Nav | null = mode.kind === 'notes' ? { kind: 'notes' } : mode.kind === 'files' ? { kind: 'files' } : mode.kind === 'actions' ? { kind: 'actions' } : mode.kind === 'wiki' ? { kind: 'wiki' } : mode.kind === 'settings' ? { kind: 'settings' } : mode.kind === 'page' ? { kind: 'page', slug: mode.slug } : mode.kind === 'absorb' ? { kind: 'notes' } : null
 
+  const showSidebarBtn = <button className="icon-btn show-sidebar" onClick={toggleSidebar} title="Show sidebar (⌘\)"><PanelLeftOpen /></button>
   let main: React.ReactNode = null
   if (mode.kind === 'absorb') {
     const node = graph.find((g) => g.id === mode.nodeId)
@@ -200,6 +201,7 @@ export default function App() {
           graph={graph}
           onChange={(patch) => updateNote(open.id, patch)}
           onDelete={() => deleteNote(open.id)}
+          leading={collapsed ? showSidebarBtn : undefined}
           onAbsorb={(section) => {
             const node = graph.find((g) => g.noteId === open.id && (section ? g.section === section : g.level === 0))
             if (node) absorbNode(node, 'edit')
@@ -209,25 +211,26 @@ export default function App() {
     }
   } else if (mode.kind === 'page') {
     main = <WikiPageView slug={mode.slug} onBack={() => setMode({ kind: 'wiki' })} onOpenSource={openSource} onOpenPage={openPage} />
+  } else if (mode.kind === 'settings') {
+    main = <Settings />
   } else if (mode.kind === 'actions') {
     main = <ActionsView onOpenNote={(id) => openNote(id)} onOpenSource={openSource} />
   } else if (mode.kind === 'files') {
     main = <FilesView notes={notes} graph={graph} onOpen={(id) => openNote(id)} />
   } else if (mode.kind === 'wiki') {
-    main = <WikiChat pageCount={pages.length} onOpen={openNote} onOpenPage={openPage} onSettings={() => setSettings(true)} />
+    main = <WikiChat pageCount={pages.length} onOpen={openNote} onOpenPage={openPage} onSettings={() => navigate({ kind: 'settings' })} />
   } else {
     main = <NotesView ref={searchRef} notes={notes} graph={graph} query={query} setQuery={setQuery} onAbsorb={(n) => absorbNode(n)} onOpen={openNote} />
   }
 
   return (
     <div className={`shell ${collapsed ? 'collapsed' : ''}`}>
-      {!collapsed && <Sidebar nav={nav} notesCount={queue.length} actionsCount={actionsCount} pages={pages} wikiBusy={!!wikiStatus?.busy} onNav={navigate} onNew={createNote} onSettings={() => setSettings(true)} onCollapse={toggleSidebar} />}
+      {!collapsed && <Sidebar nav={nav} notesCount={queue.length} actionsCount={actionsCount} pages={pages} wikiBusy={!!wikiStatus?.busy} onNav={navigate} onNew={createNote} onCollapse={toggleSidebar} />}
       <main className="main">
-        {collapsed && <div className="collapsed-bar"><button className="icon-btn" onClick={toggleSidebar} title="Show sidebar (⌘\)"><PanelLeftOpen /></button></div>}
+        {collapsed && mode.kind !== 'edit' && <div className="collapsed-bar">{showSidebarBtn}</div>}
         <Fragment key={mode.kind === 'page' ? `page:${mode.slug}` : mode.kind === 'edit' ? `edit:${mode.id}` : mode.kind}>{main}</Fragment>
       </main>
       {importing && <ImportModal onClose={() => setImporting(false)} onDone={(n) => { setImporting(false); reload(); if (n) alert(`Imported ${n} note${n === 1 ? '' : 's'} from Apple Notes.`) }} />}
-      {settings && <Settings onClose={() => setSettings(false)} />}
     </div>
   )
 }

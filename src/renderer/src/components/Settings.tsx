@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { AiStatus, WikiStatus } from '../../../shared/types'
-import { X, BookOpen, RefreshCw, Check, Pencil } from './Icons'
+import { BookOpen, RefreshCw, Check, Pencil } from './Icons'
 import { autocorrectEnabled, setAutocorrectEnabled } from '@/lib/autocorrect'
 
-interface Props { onClose: () => void }
-
 /** API key, model, wiki status. Everything else is in the files. */
-export function Settings({ onClose }: Props) {
+export function Settings() {
   const [ai, setAi] = useState<AiStatus | null>(null)
   const [key, setKey] = useState('')
   const [model, setModel] = useState('')
@@ -19,11 +17,6 @@ export function Settings({ onClose }: Props) {
   const refresh = () => { window.notes.aiStatus().then((s) => { setAi(s); setModel((m) => m || s.model || '') }); window.notes.wikiStatus().then(setWiki); window.notes.wikiLog().then(setLog) }
   useEffect(() => { refresh(); window.notes.notesDir().then(setDir) }, [])
   useEffect(() => window.notes.onWikiChanged(refresh), [])
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onClose() } }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
 
   const save = async () => {
     if (!key.trim() && !ai?.configured) return
@@ -35,9 +28,9 @@ export function Settings({ onClose }: Props) {
   const provider = key.trim().startsWith('AIza') ? 'Gemini (AI Studio)' : key.trim() ? 'OpenRouter' : ai?.model?.includes('/') ? 'OpenRouter' : ai?.configured ? 'Gemini (AI Studio)' : null
 
   return (
-    <div className="settings-scrim" onClick={onClose}>
-      <div className="settings" onClick={(e) => e.stopPropagation()}>
-        <div className="settings-head"><h2>Settings</h2><button className="mini" onClick={onClose} title="Close (Esc)"><X /></button></div>
+    <div className="view">
+      <div className="view-inner settings">
+        <h1 className="view-title">Settings</h1>
 
         <section>
           <h3>Model</h3>
