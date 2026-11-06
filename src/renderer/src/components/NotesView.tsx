@@ -3,7 +3,9 @@ import type { GraphNode, Note } from '../../../shared/types'
 import { groupLabel, shortTime } from '@/lib/dates'
 import { displayTitle } from '@/lib/notes'
 import { inbox, unitTime } from '../../../core/inbox'
-import { Search, ChevronRight, BookOpen, Pin } from './Icons'
+import { Search, ChevronRight, BookOpen, Pin, CornerDownLeft } from './Icons'
+import { CopyButton } from './CopyButton'
+import { sectionMarkdown, noteMarkdown } from '@/lib/copy'
 
 interface Props {
   notes: Note[]
@@ -51,13 +53,19 @@ export const NotesView = forwardRef<HTMLInputElement, Props>(function NotesView(
             <h2>{g.label}</h2>
             <div className="cards">
               {g.items.map((u) => (
-                <button key={u.id} className="card unit-card" onClick={() => onAbsorb(u)}>
-                  <div className="card-top">
-                    <span className="card-title">{u.noteTitle || 'Untitled'}{u.section && <><ChevronRight className="sep-icon" />{u.section}</>}</span>
-                    <span className="card-time">{shortTime(unitTime(u))}</span>
+                <div key={u.id} className="card-row">
+                  <button className="card unit-card" onClick={() => onOpen(u.noteId, u.section)} title="Open to edit">
+                    <div className="card-top">
+                      <span className="card-title">{u.noteTitle || 'Untitled'}{u.section && <><ChevronRight className="sep-icon" />{u.section}</>}</span>
+                      <span className="card-time">{shortTime(unitTime(u))}</span>
+                    </div>
+                    <div className="card-snippet">{u.preview || 'No additional text'}</div>
+                  </button>
+                  <div className="card-actions">
+                    <CopyButton title="Copy section as markdown" text={() => { const n = notes.find((x) => x.id === u.noteId); return n ? sectionMarkdown(n, u.section) : u.preview }} />
+                    <button className="icon-btn wide" title="Absorb into the wiki" onClick={() => onAbsorb(u)}><CornerDownLeft /><span>Absorb</span></button>
                   </div>
-                  <div className="card-snippet">{u.preview || 'No additional text'}</div>
-                </button>
+                </div>
               ))}
             </div>
           </section>
@@ -68,10 +76,13 @@ export const NotesView = forwardRef<HTMLInputElement, Props>(function NotesView(
             <h2>Open a note</h2>
             <div className="cards">
               {matchingNotes.map((n) => (
-                <button key={n.id} className="card" onClick={() => onOpen(n.id)}>
-                  <div className="card-top"><span className="card-title">{n.pinned && <Pin />}{displayTitle(n)}</span><span className="card-time">{shortTime(n.updatedAt)}</span></div>
-                  <div className="card-snippet">{n.preview || 'No additional text'}</div>
-                </button>
+                <div key={n.id} className="card-row">
+                  <button className="card" onClick={() => onOpen(n.id)}>
+                    <div className="card-top"><span className="card-title">{n.pinned && <Pin />}{displayTitle(n)}</span><span className="card-time">{shortTime(n.updatedAt)}</span></div>
+                    <div className="card-snippet">{n.preview || 'No additional text'}</div>
+                  </button>
+                  <div className="card-actions"><CopyButton title="Copy note as markdown" text={() => noteMarkdown(n)} /></div>
+                </div>
               ))}
             </div>
           </section>

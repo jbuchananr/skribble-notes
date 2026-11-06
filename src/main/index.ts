@@ -230,6 +230,8 @@ function buildMenu() {
         { label: 'Search', accelerator: 'CmdOrCtrl+F', click: () => send('menu', 'focus-search') },
         { label: 'Notes', accelerator: 'CmdOrCtrl+1', click: () => send('menu', 'view-inbox') },
         { label: 'Wiki', accelerator: 'CmdOrCtrl+2', click: () => send('menu', 'view-brain') },
+        { label: 'Files', accelerator: 'CmdOrCtrl+3', click: () => send('menu', 'view-all') },
+        { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+\\', click: () => send('menu', 'toggle-sidebar') },
         { label: 'Back to Notes', accelerator: 'CmdOrCtrl+[', click: () => send('menu', 'go-home') },
         { type: 'separator' },
         { role: 'reload' },

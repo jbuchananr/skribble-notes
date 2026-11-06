@@ -1,8 +1,8 @@
 import type { WikiPage } from '../../../shared/types'
-import { FileText, BookOpen, Plus, Settings as SettingsIcon, RefreshCw } from './Icons'
+import { FileText, BookOpen, Plus, Settings as SettingsIcon, RefreshCw, Files, PanelLeftClose } from './Icons'
 import logo from '../../../../assets/logo-mark.png'
 
-export type Nav = { kind: 'notes' } | { kind: 'wiki' } | { kind: 'page'; slug: string }
+export type Nav = { kind: 'notes' } | { kind: 'files' } | { kind: 'wiki' } | { kind: 'page'; slug: string }
 
 interface Props {
   nav: Nav | null
@@ -12,20 +12,27 @@ interface Props {
   onNav: (n: Nav) => void
   onNew: () => void
   onSettings: () => void
+  onCollapse: () => void
 }
 
 const KIND_ORDER: WikiPage['kind'][] = ['person', 'project', 'decision', 'concept', 'topic']
 const KIND_LABEL: Record<WikiPage['kind'], string> = { person: 'People', project: 'Projects', decision: 'Decisions', concept: 'Concepts', topic: 'Topics' }
 
-export function Sidebar({ nav, notesCount, pages, wikiBusy, onNav, onNew, onSettings }: Props) {
+export function Sidebar({ nav, notesCount, pages, wikiBusy, onNav, onNew, onSettings, onCollapse }: Props) {
   const on = (k: Nav['kind']) => nav?.kind === k
   return (
     <aside className="sidebar">
       <div className="sidebar-drag" />
-      <div className="sidebar-brand"><img className="logo" src={logo} alt="" /> Skribble</div>
+      <div className="sidebar-brand">
+        <img className="logo" src={logo} alt="" /> <span>Skribble</span>
+        <button className="icon-btn sidebar-toggle" onClick={onCollapse} title="Hide sidebar (⌘\)"><PanelLeftClose /></button>
+      </div>
       <nav className="side-nav">
         <button className={`side-item ${on('notes') ? 'on' : ''}`} onClick={() => onNav({ kind: 'notes' })}>
           <FileText /> <span>Notes</span>{notesCount > 0 && <span className="side-n">{notesCount}</span>}
+        </button>
+        <button className={`side-item ${on('files') ? 'on' : ''}`} onClick={() => onNav({ kind: 'files' })}>
+          <Files /> <span>Files</span>
         </button>
         <button className={`side-item ${on('wiki') ? 'on' : ''}`} onClick={() => onNav({ kind: 'wiki' })}>
           <BookOpen /> <span>Wiki</span>{wikiBusy && <RefreshCw className="spin side-spin" />}

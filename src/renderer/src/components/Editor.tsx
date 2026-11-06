@@ -10,11 +10,12 @@ import TaskItem from '@tiptap/extension-task-item'
 import { Details, DetailsSummary, DetailsContent } from '@tiptap/extension-details'
 import type { GraphNode, Note, Template } from '../../../shared/types'
 import { longDate } from '@/lib/dates'
-import { mdToHtml, htmlToMd } from '../../../core/markdown'
+import { mdToHtml } from '../../../core/markdown'
 import { renderTemplate } from '../../../core/template-render'
 import { isUnit } from '../../../core/inbox'
-import { TemplateMenu } from './TemplateMenu'
-import { Trash2, Pin, PinOff, Bold, Italic, Strikethrough, ListChecks, ArrowLeft } from './Icons'
+import { CopyButton } from './CopyButton'
+import { noteMarkdown } from '@/lib/copy'
+import { Trash2, Bold, Italic, Strikethrough, ListChecks } from './Icons'
 
 /** Apple Notes-style formatting shortcuts. */
 const Shortcuts = Extension.create({
@@ -85,13 +86,12 @@ interface Props {
   graph: GraphNode[]
   onChange: (patch: Partial<Note>) => void
   onDelete: () => void
-  onBack: () => void
   onAbsorb: (section?: string) => void
 }
 
 const SERIALIZE_DELAY = 300
 
-export function Editor({ note, saving, initialSection, graph, onChange, onDelete, onBack, onAbsorb }: Props) {
+export function Editor({ note, saving, initialSection, graph, onChange, onDelete, onAbsorb }: Props) {
   const titleRef = useRef<HTMLTextAreaElement>(null)
   // last HTML we handed to the app; lets us tell our own saves from edits made on disk (MCP write, import, absorb)
   const lastHtml = useRef(note.content)
@@ -224,7 +224,6 @@ export function Editor({ note, saving, initialSection, graph, onChange, onDelete
   return (
     <div className="editor-pane">
       <div className="editor-toolbar">
-        <button className="back" onClick={onBack} title="Back (⌘[ or Esc)"><ArrowLeft /> Back</button>
         <span className="saved">{saving ? 'Saving…' : 'Saved'}</span>
         {editor && (
           <div className="format-bar">
@@ -239,10 +238,7 @@ export function Editor({ note, saving, initialSection, graph, onChange, onDelete
             <Btn on={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()} title="Todo  ⇧⌘L"><ListChecks /></Btn>
           </div>
         )}
-        <TemplateMenu onInsert={insertTemplate} currentMarkdown={() => htmlToMd(editor?.getHTML() ?? '')} currentTitle={note.title} />
-        <button className="icon-btn" onClick={() => onChange({ pinned: !note.pinned })} title={note.pinned ? 'Unpin' : 'Pin'}>
-          {note.pinned ? <PinOff /> : <Pin />}
-        </button>
+        <CopyButton title="Copy note as markdown" text={() => noteMarkdown({ ...note, content: editor?.getHTML() ?? note.content })} />
         <button className="icon-btn" onClick={onDelete} title="Delete note (⌘⌫)"><Trash2 /></button>
       </div>
       <div className="editor-scroll">

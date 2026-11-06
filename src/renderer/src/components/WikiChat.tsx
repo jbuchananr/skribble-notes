@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { AiStatus, AskSource, AskTurn, WikiStatus } from '../../../shared/types'
 import { mdToHtml } from '../../../core/markdown'
 import { ArrowUp, BookOpen, RefreshCw } from './Icons'
+import { CopyButton } from './CopyButton'
 
 interface Entry { id: number; role: 'user' | 'assistant'; text: string; sources?: AskSource[]; error?: boolean }
 interface Props {
@@ -59,7 +60,7 @@ export function WikiChat({ pageCount, onOpen, onOpenPage, onSettings }: Props) {
           </div>
         )}
         {entries.map((e) => e.role === 'user' ? (
-          <div key={e.id} className="msg user">{e.text}</div>
+          <div key={e.id} className="msg-row user"><div className="msg user">{e.text}</div></div>
         ) : (
           <div key={e.id} className={`msg ai ${e.error ? 'err' : ''}`}>
             {e.error ? <div>{e.text}</div> : <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(e.text) }} />}
@@ -68,6 +69,7 @@ export function WikiChat({ pageCount, onOpen, onOpenPage, onSettings }: Props) {
                 {e.sources.map((s, i) => <button key={s.nodeId} className="ask-source" onClick={() => (s.page ? onOpenPage(s.page) : s.noteId && onOpen(s.noteId, s.section))}><span className="n">{i + 1}</span>{s.label}</button>)}
               </div>
             )}
+            {!e.error && <div className="msg-actions"><CopyButton className="icon-btn small" title="Copy answer" text={() => e.text.replace(/\s*\[\d+(?:,\s*\d+)*\]/g, '')} /></div>}
           </div>
         ))}
         {busy && <div className="msg ai thinking"><span /><span /><span /></div>}

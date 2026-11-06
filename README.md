@@ -18,7 +18,7 @@ To use the same notes on another machine, put `~/Notes` in a synced folder (or a
 ## The loop
 
 1. **Write.** One long note per stream (Meetings, Reflections, Thoughts). A section is an H1 or H2 heading through the next one, with the date in the heading (`Standup  10/13`). H3 headings are labels inside a section. A note with no headings is one unit. Each heading shows a quiet tag: *to absorb* or *absorbed Nov 5*.
-2. **Notes.** The left sidebar has two places: **Notes** and **Wiki**. Notes is everything you have written and not yet sent to the wiki, newest first; click a section to open the absorb screen. Search there reaches every note, absorbed or not, so anything can be reopened for writing.
+2. **Notes.** The left sidebar has three places: **Notes**, **Files** and **Wiki**; ⌘\ hides it. Notes is everything you have written and not yet sent to the wiki, newest first; click a section to edit it, or use its Absorb button to open the absorb screen. Files lists every note, absorbed or not. Every note and section has a copy button that copies it as markdown. Search there reaches every note, absorbed or not, so anything can be reopened for writing.
 3. **Absorb.** Left, what you wrote. Right: the takeaway you type, the connections the agent found in your other notes (tap to keep or drop), tags, and one button. ⌘↩ absorbs and moves to the next one; ⌘J / ⌘K skip; Esc goes back. The record lands in the note's frontmatter; the body you wrote is never edited:
 
    ```yaml
@@ -39,7 +39,8 @@ To use the same notes on another machine, put `~/Notes` in a synced folder (or a
 | New note | ⌘N |
 | Delete note | ⌘⌫ |
 | Search | ⌘F |
-| Notes / Wiki | ⌘1 / ⌘2 |
+| Notes / Wiki / Files | ⌘1 / ⌘2 / ⌘3 |
+| Hide / show sidebar | ⌘\ |
 | Settings | ⌘, |
 | Back | ⌘[ or Esc |
 | Absorb (on the absorb screen) | ⌘↩ |
@@ -76,6 +77,6 @@ For Claude Desktop, add the same command under `mcpServers` in its config. Tools
 
 - `src/main/` Electron main process: window, menu, IPC, Apple Notes import
 - `src/preload/` the `window.notes` bridge
-- `src/renderer/src/` React UI: `Sidebar`, `NotesView`, `WikiChat`, `Absorb` screen, `WikiPage` reader, `Settings`, `Editor` (TipTap, with heading tags)
+- `src/renderer/src/` React UI: `Sidebar`, `NotesView`, `FilesView`, `WikiChat`, `Absorb` screen, `WikiPage` reader, `Settings`, `Editor` (TipTap, with heading tags)
 - `src/core/` shared logic: markdown ↔ HTML, store, sections, graph, `absorb`, `inbox`, `insights`, `wiki` (pages, index, log), templates, `ai/` (connections agent, wiki ingest agent, ask agent)
 - `src/mcp/` the stdio MCP server

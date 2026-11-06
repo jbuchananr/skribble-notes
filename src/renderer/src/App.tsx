@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GraphNode, Note, WikiPage, WikiStatus } from '../../shared/types'
 import { Sidebar, type Nav } from './components/Sidebar'
 import { NotesView } from './components/NotesView'
+import { FilesView } from './components/FilesView'
+import { PanelLeftOpen } from './components/Icons'
 import { WikiChat } from './components/WikiChat'
 import { Editor } from './components/Editor'
 import { Absorb } from './components/Absorb'
@@ -13,6 +15,7 @@ import { inbox } from '../../core/inbox'
 
 type Mode =
   | { kind: 'notes' }
+  | { kind: 'files' }
   | { kind: 'wiki' }
   | { kind: 'page'; slug: string }
   | { kind: 'edit'; id: string; section?: string }
@@ -28,6 +31,11 @@ export default function App() {
   const [wikiStatus, setWikiStatus] = useState<WikiStatus | null>(null)
   const [importing, setImporting] = useState(false)
   const [settings, setSettings] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('skribble:sidebar') === 'hidden' } catch { return false } })
+  const toggleSidebar = useCallback(() => setCollapsed((c) => {
+    try { localStorage.setItem('skribble:sidebar', c ? 'shown' : 'hidden') } catch { /* private storage */ }
+    return !c
+  }), [])
   const searchRef = useRef<HTMLInputElement>(null)
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
 
@@ -108,7 +116,7 @@ export default function App() {
     if (n) setMode({ kind: 'edit', id: n.id, section: section?.trim() || undefined })
   }, [notes])
   const navigate = useCallback((n: Nav) => {
-    const to: Mode = n.kind === 'page' ? { kind: 'page', slug: n.slug } : n.kind === 'wiki' ? { kind: 'wiki' } : { kind: 'notes' }
+    const to: Mode = n.kind === 'page' ? { kind: 'page', slug: n.slug } : n.kind === 'wiki' ? { kind: 'wiki' } : n.kind === 'files' ? { kind: 'files' } : { kind: 'notes' }
     if (mode.kind === 'edit') leaveEditor(to); else setMode(to)
   }, [mode, leaveEditor])
 
@@ -121,12 +129,13 @@ export default function App() {
         case 'go-home': if (mode.kind === 'edit') leaveEditor(); else setMode({ kind: 'notes' }); break
         case 'view-inbox': navigate({ kind: 'notes' }); break
         case 'view-brain': navigate({ kind: 'wiki' }); break
-        case 'view-all': navigate({ kind: 'notes' }); break
+        case 'view-all': navigate({ kind: 'files' }); break
+        case 'toggle-sidebar': toggleSidebar(); break
         case 'import-apple': setImporting(true); break
         case 'settings': setSettings(true); break
       }
     })
-  }, [createNote, deleteNote, leaveEditor, navigate, mode])
+  }, [createNote, deleteNote, leaveEditor, navigate, mode, toggleSidebar])
 
   // Esc in the editor goes back to Notes (absorb and page views handle their own keys)
   useEffect(() => {
@@ -136,7 +145,7 @@ export default function App() {
   }, [mode, leaveEditor, settings])
 
   const queue = useMemo(() => inbox(graph), [graph])
-  const nav: Nav | null = mode.kind === 'notes' ? { kind: 'notes' } : mode.kind === 'wiki' ? { kind: 'wiki' } : mode.kind === 'page' ? { kind: 'page', slug: mode.slug } : mode.kind === 'absorb' ? { kind: 'notes' } : null
+  const nav: Nav | null = mode.kind === 'notes' ? { kind: 'notes' } : mode.kind === 'files' ? { kind: 'files' } : mode.kind === 'wiki' ? { kind: 'wiki' } : mode.kind === 'page' ? { kind: 'page', slug: mode.slug } : mode.kind === 'absorb' ? { kind: 'notes' } : null
 
   let main: React.ReactNode = null
   if (mode.kind === 'absorb') {
@@ -178,7 +187,6 @@ export default function App() {
           graph={graph}
           onChange={(patch) => updateNote(open.id, patch)}
           onDelete={() => deleteNote(open.id)}
-          onBack={() => leaveEditor()}
           onAbsorb={(section) => {
             const node = graph.find((g) => g.noteId === open.id && (section ? g.section === section : g.level === 0))
             if (node) absorbNode(node, 'edit')
@@ -188,6 +196,8 @@ export default function App() {
     }
   } else if (mode.kind === 'page') {
     main = <WikiPageView slug={mode.slug} onBack={() => setMode({ kind: 'wiki' })} onOpenSource={openSource} onOpenPage={openPage} />
+  } else if (mode.kind === 'files') {
+    main = <FilesView notes={notes} graph={graph} onOpen={(id) => openNote(id)} />
   } else if (mode.kind === 'wiki') {
     main = <WikiChat pageCount={pages.length} onOpen={openNote} onOpenPage={openPage} onSettings={() => setSettings(true)} />
   } else {
@@ -195,9 +205,12 @@ export default function App() {
   }
 
   return (
-    <div className="shell">
-      <Sidebar nav={nav} notesCount={queue.length} pages={pages} wikiBusy={!!wikiStatus?.busy} onNav={navigate} onNew={createNote} onSettings={() => setSettings(true)} />
-      <main className="main">{main}</main>
+    <div className={`shell ${collapsed ? 'collapsed' : ''}`}>
+      {!collapsed && <Sidebar nav={nav} notesCount={queue.length} pages={pages} wikiBusy={!!wikiStatus?.busy} onNav={navigate} onNew={createNote} onSettings={() => setSettings(true)} onCollapse={toggleSidebar} />}
+      <main className="main">
+        {collapsed && <div className="collapsed-bar"><button className="icon-btn" onClick={toggleSidebar} title="Show sidebar (⌘\)"><PanelLeftOpen /></button></div>}
+        {main}
+      </main>
       {importing && <ImportModal onClose={() => setImporting(false)} onDone={(n) => { setImporting(false); reload(); if (n) alert(`Imported ${n} note${n === 1 ? '' : 's'} from Apple Notes.`) }} />}
       {settings && <Settings onClose={() => setSettings(false)} />}
     </div>
