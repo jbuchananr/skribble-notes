@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GraphNode, Note, WikiPage, WikiStatus } from '../../shared/types'
 import { Sidebar, type Nav } from './components/Sidebar'
 import { NotesView } from './components/NotesView'
 import { FilesView } from './components/FilesView'
+import { ActionsView } from './components/ActionsView'
 import { PanelLeftOpen } from './components/Icons'
 import { WikiChat } from './components/WikiChat'
 import { Editor } from './components/Editor'
@@ -16,6 +17,7 @@ import { inbox } from '../../core/inbox'
 type Mode =
   | { kind: 'notes' }
   | { kind: 'files' }
+  | { kind: 'actions' }
   | { kind: 'wiki' }
   | { kind: 'page'; slug: string }
   | { kind: 'edit'; id: string; section?: string }
@@ -31,6 +33,7 @@ export default function App() {
   const [wikiStatus, setWikiStatus] = useState<WikiStatus | null>(null)
   const [importing, setImporting] = useState(false)
   const [settings, setSettings] = useState(false)
+  const [actionsCount, setActionsCount] = useState(0)
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('skribble:sidebar') === 'hidden' } catch { return false } })
   const toggleSidebar = useCallback(() => setCollapsed((c) => {
     try { localStorage.setItem('skribble:sidebar', c ? 'shown' : 'hidden') } catch { /* private storage */ }
@@ -42,6 +45,7 @@ export default function App() {
   const reload = useCallback(async () => {
     const [n, g] = await Promise.all([window.notes.listNotes(), window.notes.getGraph()])
     setNotes(n); setGraph(g)
+    window.notes.actions().then((a) => setActionsCount(a.items.filter((i) => !i.done).length)).catch(() => undefined)
   }, [])
   const reloadWiki = useCallback(() => { window.notes.wikiPages().then(setPages); window.notes.wikiStatus().then(setWikiStatus) }, [])
 
@@ -116,7 +120,7 @@ export default function App() {
     if (n) setMode({ kind: 'edit', id: n.id, section: section?.trim() || undefined })
   }, [notes])
   const navigate = useCallback((n: Nav) => {
-    const to: Mode = n.kind === 'page' ? { kind: 'page', slug: n.slug } : n.kind === 'wiki' ? { kind: 'wiki' } : n.kind === 'files' ? { kind: 'files' } : { kind: 'notes' }
+    const to: Mode = n.kind === 'page' ? { kind: 'page', slug: n.slug } : n.kind === 'wiki' ? { kind: 'wiki' } : n.kind === 'files' ? { kind: 'files' } : n.kind === 'actions' ? { kind: 'actions' } : { kind: 'notes' }
     if (mode.kind === 'edit') leaveEditor(to); else setMode(to)
   }, [mode, leaveEditor])
 
@@ -130,6 +134,7 @@ export default function App() {
         case 'view-inbox': navigate({ kind: 'notes' }); break
         case 'view-brain': navigate({ kind: 'wiki' }); break
         case 'view-all': navigate({ kind: 'files' }); break
+        case 'view-actions': navigate({ kind: 'actions' }); break
         case 'toggle-sidebar': toggleSidebar(); break
         case 'import-apple': setImporting(true); break
         case 'settings': setSettings(true); break
@@ -145,7 +150,7 @@ export default function App() {
   }, [mode, leaveEditor, settings])
 
   const queue = useMemo(() => inbox(graph), [graph])
-  const nav: Nav | null = mode.kind === 'notes' ? { kind: 'notes' } : mode.kind === 'files' ? { kind: 'files' } : mode.kind === 'wiki' ? { kind: 'wiki' } : mode.kind === 'page' ? { kind: 'page', slug: mode.slug } : mode.kind === 'absorb' ? { kind: 'notes' } : null
+  const nav: Nav | null = mode.kind === 'notes' ? { kind: 'notes' } : mode.kind === 'files' ? { kind: 'files' } : mode.kind === 'actions' ? { kind: 'actions' } : mode.kind === 'wiki' ? { kind: 'wiki' } : mode.kind === 'page' ? { kind: 'page', slug: mode.slug } : mode.kind === 'absorb' ? { kind: 'notes' } : null
 
   let main: React.ReactNode = null
   if (mode.kind === 'absorb') {
@@ -196,6 +201,8 @@ export default function App() {
     }
   } else if (mode.kind === 'page') {
     main = <WikiPageView slug={mode.slug} onBack={() => setMode({ kind: 'wiki' })} onOpenSource={openSource} onOpenPage={openPage} />
+  } else if (mode.kind === 'actions') {
+    main = <ActionsView onOpenNote={(id) => openNote(id)} onOpenSource={openSource} />
   } else if (mode.kind === 'files') {
     main = <FilesView notes={notes} graph={graph} onOpen={(id) => openNote(id)} />
   } else if (mode.kind === 'wiki') {
@@ -206,10 +213,10 @@ export default function App() {
 
   return (
     <div className={`shell ${collapsed ? 'collapsed' : ''}`}>
-      {!collapsed && <Sidebar nav={nav} notesCount={queue.length} pages={pages} wikiBusy={!!wikiStatus?.busy} onNav={navigate} onNew={createNote} onSettings={() => setSettings(true)} onCollapse={toggleSidebar} />}
+      {!collapsed && <Sidebar nav={nav} notesCount={queue.length} actionsCount={actionsCount} pages={pages} wikiBusy={!!wikiStatus?.busy} onNav={navigate} onNew={createNote} onSettings={() => setSettings(true)} onCollapse={toggleSidebar} />}
       <main className="main">
         {collapsed && <div className="collapsed-bar"><button className="icon-btn" onClick={toggleSidebar} title="Show sidebar (⌘\)"><PanelLeftOpen /></button></div>}
-        {main}
+        <Fragment key={mode.kind === 'page' ? `page:${mode.slug}` : mode.kind === 'edit' ? `edit:${mode.id}` : mode.kind}>{main}</Fragment>
       </main>
       {importing && <ImportModal onClose={() => setImporting(false)} onDone={(n) => { setImporting(false); reload(); if (n) alert(`Imported ${n} note${n === 1 ? '' : 's'} from Apple Notes.`) }} />}
       {settings && <Settings onClose={() => setSettings(false)} />}

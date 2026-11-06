@@ -645,3 +645,49 @@ button.primary:disabled { opacity: 0.5; }
 .shell.collapsed .main > :last-child { height: calc(100% - 40px); }
 .collapsed-bar { height: 40px; flex: none; display: flex; align-items: center; padding: 6px 0 0 84px; -webkit-app-region: drag; }
 .collapsed-bar .icon-btn { -webkit-app-region: no-drag; color: var(--text-3); }
+
+/* ---- actions ---- */
+.act-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.act-head .view-title { flex: 1; margin: 0; }
+.act-head .chip:disabled { opacity: 0.6; }
+.act-section { margin-top: 26px; }
+.act-label { display: flex; align-items: center; gap: 6px; margin: 0 0 8px 2px; min-height: 24px; }
+.act-label h2 { flex: 1; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-3); margin: 0; }
+.act-n { font-size: 11px; letter-spacing: 0; font-variant-numeric: tabular-nums; color: var(--accent); background: var(--accent-soft); padding: 0 7px; border-radius: 99px; }
+.act-label .copy-btn { opacity: 0; transition: opacity 100ms ease; }
+.act-section:hover .act-label .copy-btn, .act-label .copy-btn:focus-visible { opacity: 1; }
+
+.practice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.practice { position: relative; display: flex; align-items: flex-start; min-height: 84px; padding: 12px 14px; border-radius: 12px; background: var(--bg-elev); border: 1px solid var(--border); border-top: 3px solid var(--accent); font-size: 13.5px; font-weight: 500; line-height: 1.45; color: var(--text); }
+.practice > span { flex: 1; padding-right: 14px; }
+.practice .act-remove { position: absolute; top: 6px; right: 6px; }
+.practice:hover .act-remove { opacity: 1; }
+.practice.add { border: 1px dashed var(--border); border-top-width: 1px; background: none; color: var(--text-3); font-weight: 500; }
+.practice.act-add-btn { gap: 6px; text-align: left; }
+.practice.act-add-btn:hover { color: var(--text-2); border-color: var(--text-3); }
+.practice.act-add-btn svg { width: 14px; height: 14px; flex: none; margin-top: 2px; }
+.practice.act-add-input { width: 100%; outline: 0; color: var(--text); border-style: solid; border-color: var(--accent); }
+
+.act-row { display: flex; align-items: flex-start; gap: 9px; padding: 6px 6px 6px 2px; border-radius: 8px; }
+.act-row:hover { background: var(--bg-hover); }
+.act-check { flex: none; width: 20px; height: 20px; display: grid; place-items: center; color: var(--text-3); margin-top: 1px; }
+.act-check:hover { color: var(--accent); }
+.act-check svg { width: 17px; height: 17px; }
+.act-row.done .act-check { color: var(--accent); }
+.act-row.done .act-text { color: var(--text-3); text-decoration: line-through; }
+.act-text { flex: 1; font-size: 14px; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
+.act-from { flex: none; max-width: 34%; margin-top: 2px; font-size: 11.5px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.act-from:hover { color: var(--accent); }
+.act-remove { opacity: 0; flex: none; }
+.act-row:hover .act-remove, .act-remove:focus-visible { opacity: 1; }
+.act-row.add { width: 100%; font-size: 13.5px; color: var(--text-3); }
+.act-row.act-add-btn { align-items: center; }
+.act-row.act-add-btn:hover { color: var(--text-2); background: none; }
+.act-row.act-add-btn svg { width: 15px; height: 15px; margin: 0 4px 0 3px; }
+.act-row.act-add-input { background: none; border: 0; outline: 0; padding-left: 31px; color: var(--text); }
+.act-row.act-add-input::placeholder { color: var(--text-3); }
+.act-empty { margin: 0 0 4px 2px; }
+.act-done { margin-top: 22px; padding-top: 10px; border-top: 1px solid var(--border); }
+.act-done-head { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.act-done .link { font-size: 12px; color: var(--text-3); text-decoration: none; }
+.act-done .link:hover { color: var(--text-2); }

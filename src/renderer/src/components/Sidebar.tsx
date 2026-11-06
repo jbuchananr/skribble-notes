@@ -1,12 +1,13 @@
 import type { WikiPage } from '../../../shared/types'
-import { FileText, BookOpen, Plus, Settings as SettingsIcon, RefreshCw, Files, PanelLeftClose } from './Icons'
+import { FileText, BookOpen, Plus, Settings as SettingsIcon, RefreshCw, Files, PanelLeftClose, ListChecks } from './Icons'
 import logo from '../../../../assets/logo-mark.png'
 
-export type Nav = { kind: 'notes' } | { kind: 'files' } | { kind: 'wiki' } | { kind: 'page'; slug: string }
+export type Nav = { kind: 'notes' } | { kind: 'actions' } | { kind: 'files' } | { kind: 'wiki' } | { kind: 'page'; slug: string }
 
 interface Props {
   nav: Nav | null
   notesCount: number
+  actionsCount: number
   pages: WikiPage[]
   wikiBusy: boolean
   onNav: (n: Nav) => void
@@ -18,7 +19,7 @@ interface Props {
 const KIND_ORDER: WikiPage['kind'][] = ['person', 'project', 'decision', 'concept', 'topic']
 const KIND_LABEL: Record<WikiPage['kind'], string> = { person: 'People', project: 'Projects', decision: 'Decisions', concept: 'Concepts', topic: 'Topics' }
 
-export function Sidebar({ nav, notesCount, pages, wikiBusy, onNav, onNew, onSettings, onCollapse }: Props) {
+export function Sidebar({ nav, notesCount, actionsCount, pages, wikiBusy, onNav, onNew, onSettings, onCollapse }: Props) {
   const on = (k: Nav['kind']) => nav?.kind === k
   return (
     <aside className="sidebar">
@@ -30,6 +31,9 @@ export function Sidebar({ nav, notesCount, pages, wikiBusy, onNav, onNew, onSett
       <nav className="side-nav">
         <button className={`side-item ${on('notes') ? 'on' : ''}`} onClick={() => onNav({ kind: 'notes' })}>
           <FileText /> <span>Notes</span>{notesCount > 0 && <span className="side-n">{notesCount}</span>}
+        </button>
+        <button className={`side-item ${on('actions') ? 'on' : ''}`} onClick={() => onNav({ kind: 'actions' })}>
+          <ListChecks /> <span>Actions</span>{actionsCount > 0 && <span className="side-n">{actionsCount}</span>}
         </button>
         <button className={`side-item ${on('files') ? 'on' : ''}`} onClick={() => onNav({ kind: 'files' })}>
           <Files /> <span>Files</span>

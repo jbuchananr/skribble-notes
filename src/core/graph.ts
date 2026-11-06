@@ -20,13 +20,14 @@ export function buildGraph(notes: StoredNote[]): GraphNode[] {
   for (const n of notes) {
     const title = n.title.trim()
     const insights = isInsightsNote(n)
+    const system = n.kind === 'actions' ? { system: true } : {}
     if (title) byNoteTitle.set(title.toLowerCase(), n.id)
     const sections = parseSections(n.body)
     const lines = n.body.split('\n')
     const preambleEnd = sections[0]?.start ?? lines.length
     const preamble = lines.slice(0, preambleEnd).join('\n')
     const pre = sections.length ? undefined : getAbsorbed(n.absorbed)
-    nodes.push({ id: n.id, noteId: n.id, noteTitle: title, level: 0, tags: [...new Set([...extractTags(preamble), ...(pre?.tags ?? [])])], links: [], backlinks: [], absorbed: pre?.date, preview: mdToText(preamble).slice(0, 140), updatedAt: n.updatedAt })
+    nodes.push({ id: n.id, noteId: n.id, noteTitle: title, level: 0, tags: [...new Set([...extractTags(preamble), ...(pre?.tags ?? [])])], links: [], backlinks: [], absorbed: pre?.date, preview: mdToText(preamble).slice(0, 140), updatedAt: n.updatedAt, ...system })
     bodies.set(n.id, preamble)
     if (pre) extraLinks.set(n.id, pre.links)
     for (const sec of sections) {
@@ -36,7 +37,8 @@ export function buildGraph(notes: StoredNote[]): GraphNode[] {
         id, noteId: n.id, noteTitle: title, section: sec.heading, level: sec.level, date: sec.date,
         tags: [...new Set([...extractTags(sec.text), ...(a?.tags ?? [])])], links: [], backlinks: [],
         absorbed: a?.date, preview: mdToText(sec.text).slice(0, 140), updatedAt: n.updatedAt,
-        ...(insights && sec.level === 3 ? { insight: true } : {})
+        ...(insights && sec.level === 3 ? { insight: true } : {}),
+        ...system
       }
       nodes.push(node)
       bodies.set(id, sec.text)

@@ -18,7 +18,7 @@ To use the same notes on another machine, put `~/Notes` in a synced folder (or a
 ## The loop
 
 1. **Write.** One long note per stream (Meetings, Reflections, Thoughts). A section is an H1 or H2 heading through the next one, with the date in the heading (`Standup  10/13`). H3 headings are labels inside a section. A note with no headings is one unit. Each heading shows a quiet tag: *to absorb* or *absorbed Nov 5*.
-2. **Notes.** The left sidebar has three places: **Notes**, **Files** and **Wiki**; ⌘\ hides it. Notes is everything you have written and not yet sent to the wiki, newest first; click a section to edit it, or use its Absorb button to open the absorb screen. Files lists every note, absorbed or not. Every note and section has a copy button that copies it as markdown. Search there reaches every note, absorbed or not, so anything can be reopened for writing.
+2. **Notes.** The left sidebar has four places: **Notes**, **Actions**, **Files** and **Wiki**; ⌘\ hides it. Notes is everything you have written and not yet sent to the wiki, newest first; click a section to edit it, or use its Absorb button to open the absorb screen. Files lists every note, absorbed or not. Every note and section has a copy button that copies it as markdown. Search there reaches every note, absorbed or not, so anything can be reopened for writing.
 3. **Absorb.** Left, what you wrote. Right: the takeaway you type, the connections the agent found in your other notes (tap to keep or drop), tags, and one button. ⌘↩ absorbs and moves to the next one; ⌘J / ⌘K skip; Esc goes back. The record lands in the note's frontmatter; the body you wrote is never edited:
 
    ```yaml
@@ -30,7 +30,14 @@ To use the same notes on another machine, put `~/Notes` in a synced folder (or a
    ```
 
    The takeaway becomes a card in your **Insights** note (one `###` heading per card, linking back to the source), so each insight is its own node in the graph.
-4. **Wiki.** After each absorb, the agent folds the section and your takeaway into `~/Notes/wiki/`: it extends or creates pages under `wiki/pages/`, regenerates `wiki/index.md`, and appends to `wiki/log.md`. This runs in the background; absorbing never waits on the model. The Wiki view is a chat: ask it anything and the answer cites the page or note section it came from, clickable. Pages are listed under Wiki in the sidebar, grouped by kind. Notes you haven't absorbed are never used for answers. Settings (⌘,) shows how many absorbed sections are waiting and lets you update or rebuild the wiki.
+4. **Act.** The **Actions** page is the step after capture and synthesis. It is one note the app keeps (`kind: actions` in its frontmatter), with four lists:
+   - *Practicing*: lessons you are applying to how you work, shown as cards to glance at before a meeting. They come from your reflections ("Takeaways for next time", "Next time:", "In the future I want to…") or from the "A lesson for next time" box when absorbing.
+   - *To do*: tasks a section commits someone to, with the owner kept.
+   - *Project changes*: decisions to change a project's scope or priority.
+   - *To share*: takeaways owed to someone.
+
+   When you absorb a section, the model files its actions in the background: each one written to read on its own, with a link back to the section, skipping anything already listed or done. Without a key, the "Action Items" / "Next steps" lists and unchecked `- [ ]` todos are filed as written, and "Takeaways for next time" lists become practices. `.actions.json` remembers which sections were filed and their text, so an unchanged section is never filed twice. **Re-extract** replaces the open actions that came from notes; done ones and ones you added stay. "Edit as note" opens the markdown.
+5. **Wiki.** After each absorb, the agent folds the section and your takeaway into `~/Notes/wiki/`: it extends or creates pages under `wiki/pages/`, regenerates `wiki/index.md`, and appends to `wiki/log.md`. This runs in the background; absorbing never waits on the model. The Wiki view is a chat: ask it anything and the answer cites the page or note section it came from, clickable. Pages are listed under Wiki in the sidebar, grouped by kind. Notes you haven't absorbed are never used for answers. Settings (⌘,) shows how many absorbed sections are waiting and lets you update or rebuild the wiki.
 
 ## Shortcuts
 
@@ -39,7 +46,7 @@ To use the same notes on another machine, put `~/Notes` in a synced folder (or a
 | New note | ⌘N |
 | Delete note | ⌘⌫ |
 | Search | ⌘F |
-| Notes / Wiki / Files | ⌘1 / ⌘2 / ⌘3 |
+| Notes / Wiki / Files / Actions | ⌘1 / ⌘2 / ⌘3 / ⌘4 |
 | Hide / show sidebar | ⌘\ |
 | Settings | ⌘, |
 | Back | ⌘[ or Esc |
@@ -71,12 +78,12 @@ pnpm build
 claude mcp add skribble -- node /path/to/skribble/out/mcp/server.mjs
 ```
 
-For Claude Desktop, add the same command under `mcpServers` in its config. Tools: `list_notes`, `search_notes`, `read_note`, `read_section`, `create_note`, `update_note`, `append_to_note`, `append_section`, `list_templates`, `get_graph`, `list_inbox` (not yet absorbed), `list_absorbed`, `list_wiki`, `read_wiki_page`, `wiki_log`, `search_wiki`, `ask_wiki`, `suggest_connections`, `absorb`, `add_insight`. The absorb tools follow the same rule as the app: `suggest_connections` proposes, `absorb` records only what the user kept and then updates the wiki, `add_insight` files words the user wrote.
+For Claude Desktop, add the same command under `mcpServers` in its config. Tools: `list_notes`, `search_notes`, `read_note`, `read_section`, `create_note`, `update_note`, `append_to_note`, `append_section`, `list_templates`, `get_graph`, `list_inbox` (not yet absorbed), `list_absorbed`, `list_wiki`, `read_wiki_page`, `wiki_log`, `search_wiki`, `ask_wiki`, `suggest_connections`, `absorb`, `add_insight`, `list_actions`, `add_practice`. The absorb tools follow the same rule as the app: `suggest_connections` proposes, `absorb` records only what the user kept and then updates the wiki, `add_insight` files words the user wrote.
 
 ## Layout
 
 - `src/main/` Electron main process: window, menu, IPC, Apple Notes import
 - `src/preload/` the `window.notes` bridge
-- `src/renderer/src/` React UI: `Sidebar`, `NotesView`, `FilesView`, `WikiChat`, `Absorb` screen, `WikiPage` reader, `Settings`, `Editor` (TipTap, with heading tags)
-- `src/core/` shared logic: markdown ↔ HTML, store, sections, graph, `absorb`, `inbox`, `insights`, `wiki` (pages, index, log), templates, `ai/` (connections agent, wiki ingest agent, ask agent)
+- `src/renderer/src/` React UI: `Sidebar`, `NotesView`, `ActionsView`, `FilesView`, `WikiChat`, `Absorb` screen, `WikiPage` reader, `Settings`, `Editor` (TipTap, with heading tags)
+- `src/core/` shared logic: markdown ↔ HTML, store, sections, graph, `absorb`, `inbox`, `insights`, `actions`, `wiki` (pages, index, log), templates, `ai/` (connections, actions, wiki ingest and ask agents)
 - `src/mcp/` the stdio MCP server

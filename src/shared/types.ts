@@ -31,7 +31,11 @@ export interface Note {
   absorbed: Absorbed[]
   createdAt: number
   updatedAt: number
+  /** a note the app maintains: 'actions' is the Actions note */
+  kind?: NoteKind
 }
+
+export type NoteKind = 'actions'
 
 /** A node is a section of a note (or the note's preamble before its first heading). */
 export interface GraphNode {
@@ -56,6 +60,8 @@ export interface GraphNode {
   updatedAt: number
   /** this node is a card in the Insights note */
   insight?: boolean
+  /** this node belongs to a note the app maintains (Actions); never a unit to absorb */
+  system?: boolean
 }
 
 export type WikiPageKind = 'person' | 'project' | 'concept' | 'topic' | 'decision'
@@ -124,7 +130,37 @@ export interface AbsorbRequest {
   tags: string[]
   /** the takeaway in the user's own words; becomes an insight card */
   insight?: string
+  /** something the user is trying to do better; added to Practicing in the Actions note */
+  practice?: string
 }
+
+/** What acting on a note can mean: a task, a change to a project's scope or priority, or a takeaway to pass on. */
+export type ActionKind = 'todo' | 'change' | 'share'
+export type ActionList = 'practices' | ActionKind
+
+/** One line in the Actions note. */
+export interface ActionItem {
+  text: string
+  done: boolean
+  kind: ActionKind
+  /** wikilink target of the section it came from, "Note Title#Section" */
+  source?: string
+}
+
+/** The Actions note, parsed: what you are practicing, and what you are acting on. */
+export interface ActionsState {
+  noteId: string
+  practices: string[]
+  items: ActionItem[]
+}
+
+export type ActionsEdit =
+  | { op: 'add'; list: ActionList; text: string }
+  | { op: 'remove'; list: ActionList; text: string }
+  | { op: 'toggle'; text: string }
+  | { op: 'clear-done' }
+  /** drop every open item filed from a note and extract them all again */
+  | { op: 'rebuild' }
 
 export interface InsightRequest {
   text: string
@@ -180,6 +216,8 @@ export interface NotesApi {
   /** fold every absorbed unit not yet in the wiki (or all of them with force) */
   wikiRebuild: (force?: boolean) => Promise<number>
   wikiLog: () => Promise<string>
+  actions: () => Promise<ActionsState>
+  editActions: (edit: ActionsEdit) => Promise<ActionsState>
   onWikiChanged: (cb: () => void) => () => void
   onMenu: (cb: (action: string) => void) => () => void
   onNotesChanged: (cb: () => void) => () => void

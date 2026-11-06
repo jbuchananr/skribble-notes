@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs'
 import { join } from 'path'
 import matter from 'gray-matter'
-import type { Note, Absorbed } from '../shared/types'
+import type { Note, Absorbed, NoteKind } from '../shared/types'
 import { NOTES_DIR } from './paths'
 import { htmlToMd, mdToHtml, mdToText, extractTags } from './markdown'
 
@@ -15,6 +15,7 @@ export interface StoredNote {
   absorbed: Absorbed[]
   createdAt: number
   updatedAt: number
+  kind?: NoteKind
   path: string
 }
 
@@ -44,6 +45,7 @@ function parse(raw: string, path: string): StoredNote | null {
     absorbed: parseAbsorbed(data.absorbed),
     createdAt: parseWhen(data.created) ?? Date.now(),
     updatedAt: parseWhen(data.updated) ?? Date.now(),
+    ...(data.kind === 'actions' ? { kind: 'actions' as const } : {}),
     path
   }
 }
@@ -118,6 +120,7 @@ export function serialize(n: Omit<StoredNote, 'path'>): string {
     created: iso(n.createdAt),
     updated: iso(n.updatedAt)
   }
+  if (n.kind) fm.kind = n.kind
   if (n.pinned) fm.pinned = true
   if (n.tags.length) fm.tags = n.tags
   if (n.absorbed.length) fm.absorbed = n.absorbed.map((a) => ({ ...(a.section ? { section: a.section } : {}), date: a.date, ...(a.links.length ? { links: a.links } : {}), ...(a.tags.length ? { tags: a.tags } : {}) }))
@@ -157,7 +160,8 @@ export function toNote(s: StoredNote): Note {
     tags: s.tags,
     absorbed: s.absorbed,
     createdAt: s.createdAt,
-    updatedAt: s.updatedAt
+    updatedAt: s.updatedAt,
+    ...(s.kind ? { kind: s.kind } : {})
   }
 }
 
@@ -171,7 +175,8 @@ export function fromNote(n: Note): Omit<StoredNote, 'path'> {
     tags: extractTags(body),
     absorbed: n.absorbed ?? [],
     createdAt: n.createdAt,
-    updatedAt: n.updatedAt
+    updatedAt: n.updatedAt,
+    ...(n.kind ? { kind: n.kind } : {})
   }
 }
 

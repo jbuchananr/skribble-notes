@@ -14,6 +14,7 @@ import { parseSections } from '../core/sections'
 import { setAbsorbed, getAbsorbed, today } from '../core/absorb'
 import { inbox, brain } from '../core/inbox'
 import { addInsight } from '../core/insights'
+import * as actions from '../core/actions'
 import { readAiConfig } from '../core/ai/config'
 import { suggestConnections } from '../core/ai/suggest'
 import { ask, wikiPassages, retrieve } from '../core/ai/ask'
@@ -237,16 +238,17 @@ server.registerTool('absorb', {
   n.updatedAt = Date.now()
   await store.writeStored(n)
   if (insight?.trim()) await addInsight({ text: insight, noteTitle: n.title || 'Untitled', section })
-  let wikiNote = ''
   const cfg = await readAiConfig()
+  const filed = await actions.fileActionItems(n, section, cfg, insight?.trim() || undefined).catch(() => 0)
+  let wikiNote = filed ? ` Filed ${filed} action(s).` : ''
   if (cfg) {
     try {
       const entry = n.absorbed.find((a) => (a.section ?? '') === (section ?? ''))!
       const touched = await ingest({ note: n, section, entry, insight: insight?.trim() || undefined }, cfg)
       await wiki.markIngested(sourceRef(n, section))
-      wikiNote = touched.length ? ` Wiki pages touched: ${touched.join(', ')}.` : ' Wiki: nothing to add.'
-    } catch (e) { wikiNote = ` Wiki update failed: ${(e as Error).message}` }
-  } else wikiNote = ' Wiki not updated (no API key configured).'
+      wikiNote += touched.length ? ` Wiki pages touched: ${touched.join(', ')}.` : ' Wiki: nothing to add.'
+    } catch (e) { wikiNote += ` Wiki update failed: ${(e as Error).message}` }
+  } else wikiNote += ' Wiki not updated (no API key configured).'
   return text(`Absorbed: ${n.title || 'Untitled'}${section ? ' › ' + section : ''}${insight?.trim() ? ' (+ insight card)' : ''}.${wikiNote}`)
 })
 
@@ -275,6 +277,22 @@ server.registerTool('add_insight', {
 }, async ({ text: t, note_title, section }) => {
   const id = await addInsight({ text: t, noteTitle: note_title, section })
   return text(`Added to Insights (${id})`)
+})
+
+server.registerTool('list_actions', {
+  description: 'The Actions note. "practices" are lessons the user is actively applying to how they work. "items" are what they are acting on, filed automatically from absorbed sections: kind "todo" (tasks), "change" (changes to a project\'s scope or priority) or "share" (takeaways to pass on), each with the section it came from.',
+  inputSchema: { include_done: z.boolean().default(false) }
+}, async ({ include_done }) => {
+  const s = await actions.readActions()
+  return text(JSON.stringify({ practices: s.practices, items: include_done ? s.items : s.items.filter((i) => !i.done) }, null, 2))
+})
+
+server.registerTool('add_practice', {
+  description: 'Add a practice to the Actions note: a lesson the user is actively applying to how they work.',
+  inputSchema: { text: z.string().min(3) }
+}, async ({ text: t }) => {
+  const s = await actions.editActions({ op: 'add', list: 'practices', text: t })
+  return text(`Practicing now: ${s.practices.join(' | ')}`)
 })
 
 server.registerTool('list_templates', {

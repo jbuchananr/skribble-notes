@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { NotesApi, Note, Template, SuggestRequest, AbsorbRequest, AskRequest } from '../shared/types'
+import type { NotesApi, Note, Template, SuggestRequest, AbsorbRequest, AskRequest, ActionsEdit } from '../shared/types'
 
 const on = (channel: string) => (cb: (...a: never[]) => void) => {
   const handler = (_e: unknown, ...args: unknown[]) => (cb as (...a: unknown[]) => void)(...args)
@@ -28,6 +28,8 @@ const api: NotesApi = {
   wikiStatus: () => ipcRenderer.invoke('wiki:status'),
   wikiRebuild: (force?: boolean) => ipcRenderer.invoke('wiki:rebuild', force),
   wikiLog: () => ipcRenderer.invoke('wiki:log'),
+  actions: () => ipcRenderer.invoke('actions:get'),
+  editActions: (edit: ActionsEdit) => ipcRenderer.invoke('actions:edit', edit),
   onWikiChanged: on('wiki-changed'),
   onMenu: on('menu'),
   onNotesChanged: on('notes-changed')

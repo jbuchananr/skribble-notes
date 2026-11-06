@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, Menu, nativeTheme } from 'electron'
 import { join } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import type { Note, Template, AppleNoteSummary, AiStatus, SuggestRequest, AbsorbRequest, AskRequest, WikiStatus } from '../shared/types'
+import type { Note, Template, AppleNoteSummary, AiStatus, SuggestRequest, AbsorbRequest, AskRequest, WikiStatus, ActionsEdit } from '../shared/types'
 import { NOTES_DIR } from '../core/paths'
 import * as store from '../core/store'
 import { buildGraph } from '../core/graph'
@@ -12,6 +12,7 @@ import { readAiConfig, writeAiConfig } from '../core/ai/config'
 import { suggestConnections } from '../core/ai/suggest'
 import { ask } from '../core/ai/ask'
 import { addInsight } from '../core/insights'
+import * as actions from '../core/actions'
 import { setAbsorbed, today, getAbsorbed } from '../core/absorb'
 import * as wiki from '../core/wiki'
 import { ingest, sourceRef } from '../core/ai/wiki'
@@ -41,7 +42,12 @@ async function absorb(req: AbsorbRequest): Promise<Note> {
   const absorbed = setAbsorbed(n.absorbed, { section: req.section, date: today(), links: req.links, tags: req.tags })
   const saved = await store.writeStored({ ...n, absorbed, updatedAt: Date.now() })
   if (req.insight?.trim()) await addInsight({ text: req.insight, noteTitle: n.title || 'Untitled', section: req.section })
+  if (req.practice?.trim()) await actions.editActions({ op: 'add', list: 'practices', text: req.practice })
   send('notes-changed')
+  // the model writes the actions; do it in the background so absorbing never waits
+  readAiConfig().then((cfg) => actions.fileActionItems(saved, req.section, cfg, req.insight?.trim() || undefined))
+    .then((n) => { if (n) send('notes-changed') })
+    .catch((e) => console.error('filing actions failed', e))
   // fold it into the wiki in the background; absorbing itself never waits on the model
   queueIngest({ note: saved, section: req.section, insight: req.insight?.trim() || undefined })
   return store.toNote(saved)
@@ -231,6 +237,7 @@ function buildMenu() {
         { label: 'Notes', accelerator: 'CmdOrCtrl+1', click: () => send('menu', 'view-inbox') },
         { label: 'Wiki', accelerator: 'CmdOrCtrl+2', click: () => send('menu', 'view-brain') },
         { label: 'Files', accelerator: 'CmdOrCtrl+3', click: () => send('menu', 'view-all') },
+        { label: 'Actions', accelerator: 'CmdOrCtrl+4', click: () => send('menu', 'view-actions') },
         { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+\\', click: () => send('menu', 'toggle-sidebar') },
         { label: 'Back to Notes', accelerator: 'CmdOrCtrl+[', click: () => send('menu', 'go-home') },
         { type: 'separator' },
@@ -251,6 +258,8 @@ app.whenReady().then(async () => {
   await templates.ensureTemplates()
   const migrated = await store.migrateMarkers()
   await wiki.ensureWiki()
+  // file action items from anything absorbed before this existed (or by the MCP server while the app was closed)
+  readAiConfig().then((cfg) => actions.fileAllAbsorbed(cfg)).then((n) => { if (n) send('notes-changed') }).catch((e) => console.error('action items catch-up failed', e))
   // catch up on anything absorbed while no key was configured or the app was closed
   setTimeout(() => { wikiRebuild(false).catch((e) => console.error('wiki catch-up failed', e)) }, 3000)
   if (migrated) console.log(`moved absorb markers into frontmatter for ${migrated} note(s)`)
@@ -280,6 +289,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('wiki:rebuild', (_e, force?: boolean) => wikiRebuild(!!force))
   ipcMain.handle('wiki:log', () => wiki.readLog())
   ipcMain.handle('notes:absorb', (_e, req: AbsorbRequest) => absorb(req))
+  ipcMain.handle('actions:get', () => actions.readActions())
+  ipcMain.handle('actions:edit', async (_e, edit: ActionsEdit) => { const r = await actions.editActions(edit, await readAiConfig()); send('notes-changed'); return r })
   ipcMain.handle('apple:list', () => appleNotesList())
   ipcMain.handle('apple:import', (_e, ids: string[]) => appleNotesImport(ids))
 

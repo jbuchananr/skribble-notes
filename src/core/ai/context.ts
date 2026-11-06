@@ -59,6 +59,7 @@ export function relatedSections(focusText: string, focusNoteId: string, focusHea
   const focusTokens = tokens(focusText)
   const out: Candidate[] = []
   for (const n of notes) {
+    if (n.kind === 'actions') continue
     for (const p of unitsOf(n)) {
       if (p.id === focusId || substance(p.text) < MIN_WORDS) continue
       if (n.id === focusNoteId && !focusHeading) continue // whole-note focus already includes these

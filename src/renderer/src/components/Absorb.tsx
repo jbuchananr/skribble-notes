@@ -4,7 +4,7 @@ import { htmlToMd, mdToHtml } from '../../../core/markdown'
 import { unitMarkdown } from '../../../core/sections'
 import { getAbsorbed } from '../../../core/absorb'
 import { label } from '../../../core/inbox'
-import { ArrowLeft, ChevronLeft, ChevronRight, Check, Link2, Hash, Lightbulb, Pencil, Sparkles, CornerDownLeft, Brain } from './Icons'
+import { ArrowLeft, ChevronLeft, ChevronRight, Check, Link2, Hash, Lightbulb, Pencil, Sparkles, CornerDownLeft, Brain, Target } from './Icons'
 
 interface Props {
   note: Note
@@ -36,6 +36,7 @@ export function Absorb({ note, node, graph, position, onBack, onEdit, onNav, onA
   const [kept, setKept] = useState<Set<string>>(() => new Set(already?.links ?? []))
   const [tags, setTags] = useState<Set<string>>(() => new Set(already?.tags ?? []))
   const [insight, setInsight] = useState('')
+  const [practice, setPractice] = useState('')
   const [busy, setBusy] = useState(false)
   const insightRef = useRef<HTMLTextAreaElement>(null)
 
@@ -66,7 +67,7 @@ export function Absorb({ note, node, graph, position, onBack, onEdit, onNav, onA
     if (busy) return
     setBusy(true); setError(null)
     try {
-      await window.notes.absorb({ noteId: note.id, section, links: [...kept], tags: [...tags], insight: insight.trim() || undefined })
+      await window.notes.absorb({ noteId: note.id, section, links: [...kept], tags: [...tags], insight: insight.trim() || undefined, practice: practice.trim() || undefined })
       onAbsorbed()
     } catch (e) {
       setError((e as Error).message.replace(/^Error invoking remote method '[^']+': Error: /, ''))
@@ -117,6 +118,11 @@ export function Absorb({ note, node, graph, position, onBack, onEdit, onNav, onA
             <h3><Lightbulb /> Takeaway, in your own words</h3>
             <textarea ref={insightRef} rows={3} className="text-input absorb-insight" placeholder="One sentence. Leave empty if this one has no takeaway." value={insight} onChange={(e) => setInsight(e.target.value)} />
             {suggestion?.insightQuote && <div className="absorb-quote">You wrote: “{suggestion.insightQuote}”</div>}
+          </section>
+
+          <section className="absorb-block">
+            <h3><Target /> A lesson for next time</h3>
+            <textarea rows={2} className="text-input absorb-insight" placeholder="Optional. Goes under Practicing in Actions. Lessons in what you wrote are picked up on their own." value={practice} onChange={(e) => setPractice(e.target.value)} />
           </section>
 
           <section className="absorb-block">

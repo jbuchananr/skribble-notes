@@ -8,7 +8,7 @@ const hasText = (s: string) => s.replace(/\u00a0/g, ' ').trim().length > 0
 
 /** Any section with text in it is a unit, however short. A note with no headings is one unit once it has a title or text. */
 export function isUnit(node: GraphNode, graph: GraphNode[]): boolean {
-  if (node.insight) return false
+  if (node.insight || node.system) return false
   if (node.level === 0) {
     // the preamble counts only for notes that have no sections at all
     return !graph.some((g) => g.noteId === node.noteId && g.level > 0) && (hasText(node.preview) || hasText(node.noteTitle))
