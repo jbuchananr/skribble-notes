@@ -23,6 +23,8 @@ import { ingest, sourceRef } from '../core/ai/wiki'
 import { listTemplates, renderTemplate } from '../core/templates'
 import { mdToText } from '../core/markdown'
 import { NOTES_DIR } from '../core/paths'
+import { syncOnce } from '../core/cloud/sync'
+import { readCloudConfig, DEVICE_ID } from '../core/cloud/config'
 
 const server = new McpServer({ name: 'skribble', version: '0.2.0' })
 
@@ -270,6 +272,15 @@ server.registerTool('wiki_log', {
   description: 'Recent entries from the wiki log (ingests and rebuilds).',
   inputSchema: { limit: z.number().int().min(1).max(200).default(30) }
 }, async ({ limit }) => text(await wiki.readLog(limit)))
+
+server.registerTool('sync_cloud', {
+  description: 'Sync the notes folder with the cloud database (pull other machines\' changes, push local ones). Needs a connection string in ~/.config/skribble/cloud.json or DATABASE_URL.',
+  inputSchema: {}
+}, async () => {
+  if (!(await readCloudConfig())) return text('Cloud sync is not configured. Paste a Postgres connection string in Skribble › Settings › Cloud.')
+  const r = await syncOnce()
+  return text(`Synced as ${DEVICE_ID}: pulled ${r.pulled}, pushed ${r.pushed}, deleted ${r.deleted}, conflicts ${r.conflicts}`)
+})
 
 server.registerTool('add_insight', {
   description: 'File a one-sentence takeaway as a card in the Insights note, linking back to the section it came from. The sentence must be the user\'s own words, typed or dictated by them; do not generate it.',

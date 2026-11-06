@@ -36,6 +36,9 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
+    "@neon/config": "^1.12.1",
+    "@neon/env": "^2.0.1",
+    "@neondatabase/serverless": "^1.2.0",
     "@tiptap/core": "^3.32.0",
     "@tiptap/extension-details": "3.32.0",
     "@tiptap/extension-placeholder": "^3.32.0",

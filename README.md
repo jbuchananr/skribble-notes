@@ -80,7 +80,7 @@ pnpm build
 claude mcp add skribble -- node /path/to/skribble/out/mcp/server.mjs
 ```
 
-For Claude Desktop, add the same command under `mcpServers` in its config. Tools: `list_notes`, `search_notes`, `read_note`, `read_section`, `create_note`, `update_note`, `append_to_note`, `append_section`, `list_templates`, `get_graph`, `list_inbox` (not yet absorbed), `list_absorbed`, `list_wiki`, `read_wiki_page`, `wiki_log`, `search_wiki`, `ask_wiki`, `suggest_connections`, `absorb`, `add_insight`, `list_actions`, `add_practice`. The absorb tools follow the same rule as the app: `suggest_connections` proposes, `absorb` records only what the user kept and then updates the wiki, `add_insight` files words the user wrote.
+For Claude Desktop, add the same command under `mcpServers` in its config. Tools: `list_notes`, `search_notes`, `read_note`, `read_section`, `create_note`, `update_note`, `append_to_note`, `append_section`, `list_templates`, `get_graph`, `list_inbox` (not yet absorbed), `list_absorbed`, `list_wiki`, `read_wiki_page`, `wiki_log`, `search_wiki`, `ask_wiki`, `suggest_connections`, `absorb`, `add_insight`, `list_actions`, `add_practice`, `sync_cloud`. The absorb tools follow the same rule as the app: `suggest_connections` proposes, `absorb` records only what the user kept and then updates the wiki, `add_insight` files words the user wrote.
 
 ## Layout
 

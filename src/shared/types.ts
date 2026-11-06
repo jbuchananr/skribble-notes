@@ -96,6 +96,18 @@ export interface Template {
 
 export interface AiStatus { configured: boolean; model?: string }
 
+/** Where the two-way sync with Postgres stands. */
+export interface CloudStatus {
+  configured: boolean
+  /** this machine's id in the sync table */
+  device: string
+  busy: boolean
+  lastSync?: number
+  lastError?: string
+  /** what the last cycle did */
+  last?: { pushed: number; pulled: number; deleted: number; conflicts: number }
+}
+
 /** Ask the agent where a section connects in the brain. */
 export interface SuggestRequest {
   noteId: string
@@ -218,6 +230,11 @@ export interface NotesApi {
   wikiLog: () => Promise<string>
   actions: () => Promise<ActionsState>
   editActions: (edit: ActionsEdit) => Promise<ActionsState>
+  cloudStatus: () => Promise<CloudStatus>
+  /** save a Postgres connection string (empty string disconnects) and sync right away */
+  cloudConfigure: (databaseUrl: string) => Promise<CloudStatus>
+  cloudSync: () => Promise<CloudStatus>
+  onCloudChanged: (cb: () => void) => () => void
   onWikiChanged: (cb: () => void) => () => void
   onMenu: (cb: (action: string) => void) => () => void
   onNotesChanged: (cb: () => void) => () => void

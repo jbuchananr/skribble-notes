@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, Menu, nativeTheme } from 'electron'
 import { join } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import type { Note, Template, AppleNoteSummary, AiStatus, SuggestRequest, AbsorbRequest, AskRequest, WikiStatus, ActionsEdit } from '../shared/types'
+import type { Note, Template, AppleNoteSummary, AiStatus, SuggestRequest, AbsorbRequest, AskRequest, WikiStatus, ActionsEdit, CloudStatus } from '../shared/types'
 import { NOTES_DIR } from '../core/paths'
 import * as store from '../core/store'
 import { buildGraph } from '../core/graph'
@@ -20,6 +20,8 @@ import { buildGraph as graphOf } from '../core/graph'
 import { isUnit } from '../core/inbox'
 import type { StoredNote } from '../core/store'
 import { ACTIONS_ENABLED } from '../shared/features'
+import { readCloudConfig, writeCloudConfig, clearCloudConfig, looksLikeDatabaseUrl, DEVICE_ID } from '../core/cloud/config'
+import { syncOnce, resetSyncState, type SyncResult } from '../core/cloud/sync'
 
 const run = promisify(execFile)
 
@@ -45,6 +47,7 @@ async function absorb(req: AbsorbRequest): Promise<Note> {
   if (req.insight?.trim()) await addInsight({ text: req.insight, noteTitle: n.title || 'Untitled', section: req.section })
   if (ACTIONS_ENABLED && req.practice?.trim()) await actions.editActions({ op: 'add', list: 'practices', text: req.practice })
   send('notes-changed')
+  scheduleSync()
   // the model writes the actions; do it in the background so absorbing never waits
   if (ACTIONS_ENABLED) readAiConfig().then((cfg) => actions.fileActionItems(saved, req.section, cfg, req.insight?.trim() || undefined))
     .then((n) => { if (n) send('notes-changed') })
@@ -86,6 +89,7 @@ async function drainIngest() {
         console.error('wiki ingest failed', sourceRef(fresh, job.section), wikiError)
       }
       send('wiki-changed')
+      scheduleSync()
     }
   } finally {
     wikiBusy = false
@@ -120,6 +124,46 @@ async function wikiRebuild(force: boolean): Promise<number> {
   for (const j of pending) queueIngest(j)
   if (pending.length) await wiki.appendLog('rebuild', `${pending.length} unit(s) queued${force ? ' (forced)' : ''}`)
   return pending.length
+}
+
+// ---------- cloud sync: pull other machines' changes, push ours; runs after every write and on a timer ----------
+let cloudBusy = false
+let cloudAgain = false
+let cloudLastSync: number | undefined
+let cloudLastError: string | undefined
+let cloudLast: SyncResult | undefined
+let cloudTimer: ReturnType<typeof setTimeout> | undefined
+
+async function cloudStatus(): Promise<CloudStatus> {
+  const cfg = await readCloudConfig()
+  return { configured: !!cfg, device: DEVICE_ID, busy: cloudBusy, lastSync: cloudLastSync, lastError: cloudLastError, last: cloudLast }
+}
+
+async function cloudSync(): Promise<CloudStatus> {
+  if (cloudBusy) { cloudAgain = true; return cloudStatus() }
+  if (!(await readCloudConfig())) return cloudStatus()
+  cloudBusy = true
+  send('cloud-changed')
+  try {
+    cloudLast = await syncOnce()
+    cloudLastSync = Date.now()
+    cloudLastError = undefined
+    if (cloudLast.changed) { send('notes-changed'); send('wiki-changed') }
+  } catch (e) {
+    cloudLastError = (e as Error).message
+    console.error('cloud sync failed', cloudLastError)
+  } finally {
+    cloudBusy = false
+    send('cloud-changed')
+    if (cloudAgain) { cloudAgain = false; scheduleSync(1500) }
+  }
+  return cloudStatus()
+}
+
+/** Coalesce bursts of saves into one sync a moment later. */
+function scheduleSync(delay = 2500) {
+  if (cloudTimer) clearTimeout(cloudTimer)
+  cloudTimer = setTimeout(() => { cloudTimer = undefined; cloudSync().catch(() => undefined) }, delay)
 }
 
 async function aiConfig() {
@@ -170,7 +214,7 @@ async function appleNotesImport(ids: string[]): Promise<number> {
     await store.writeStored({ id: crypto.randomUUID(), title: n.name, body: md, pinned: false, tags: [], absorbed: [], createdAt: Date.parse(n.created) || now, updatedAt: Date.parse(n.modified) || now })
     count++
   }
-  if (count) send('notes-changed')
+  if (count) { send('notes-changed'); scheduleSync() }
   return count
 }
 
@@ -276,16 +320,20 @@ app.whenReady().then(async () => {
   if (ACTIONS_ENABLED) readAiConfig().then((cfg) => actions.fileAllAbsorbed(cfg)).then((n) => { if (n) send('notes-changed') }).catch((e) => console.error('action items catch-up failed', e))
   // catch up on anything absorbed while no key was configured or the app was closed
   setTimeout(() => { wikiRebuild(false).catch((e) => console.error('wiki catch-up failed', e)) }, 3000)
+  // cloud: sync shortly after launch, every minute, and whenever the window comes back to the front
+  scheduleSync(1500)
+  setInterval(() => { if (!cloudBusy) cloudSync().catch(() => undefined) }, 60_000)
+  app.on('browser-window-focus', () => scheduleSync(500))
   if (migrated) console.log(`moved absorb markers into frontmatter for ${migrated} note(s)`)
 
   ipcMain.handle('notes:list', () => listNotes())
-  ipcMain.handle('notes:save', async (_e, note: Note) => store.toNote(await store.writeStored(store.fromNote(note))))
-  ipcMain.handle('notes:delete', (_e, id: string) => store.deleteStored(id))
+  ipcMain.handle('notes:save', async (_e, note: Note) => { const n = store.toNote(await store.writeStored(store.fromNote(note))); scheduleSync(); return n })
+  ipcMain.handle('notes:delete', async (_e, id: string) => { await store.deleteStored(id); scheduleSync() })
   ipcMain.handle('notes:dir', () => NOTES_DIR)
   ipcMain.handle('graph:get', async () => buildGraph(await store.listStored()))
   ipcMain.handle('templates:list', () => templates.listTemplates())
-  ipcMain.handle('templates:save', (_e, t: Template) => templates.saveTemplate(t))
-  ipcMain.handle('templates:delete', (_e, name: string) => templates.deleteTemplate(name))
+  ipcMain.handle('templates:save', async (_e, t: Template) => { await templates.saveTemplate(t); scheduleSync() })
+  ipcMain.handle('templates:delete', async (_e, name: string) => { await templates.deleteTemplate(name); scheduleSync() })
   ipcMain.handle('ai:status', async (): Promise<AiStatus> => { const c = await readAiConfig(); return { configured: !!c, model: c?.model } })
   ipcMain.handle('ai:configure', async (_e, cfg: { apiKey: string; model?: string }): Promise<AiStatus> => {
     const prev = await readAiConfig()
@@ -304,7 +352,18 @@ app.whenReady().then(async () => {
   ipcMain.handle('wiki:log', () => wiki.readLog())
   ipcMain.handle('notes:absorb', (_e, req: AbsorbRequest) => absorb(req))
   ipcMain.handle('actions:get', () => actions.readActions())
-  ipcMain.handle('actions:edit', async (_e, edit: ActionsEdit) => { const r = await actions.editActions(edit, await readAiConfig()); send('notes-changed'); return r })
+  ipcMain.handle('actions:edit', async (_e, edit: ActionsEdit) => { const r = await actions.editActions(edit, await readAiConfig()); send('notes-changed'); scheduleSync(); return r })
+  ipcMain.handle('cloud:status', () => cloudStatus())
+  ipcMain.handle('cloud:configure', async (_e, databaseUrl: string): Promise<CloudStatus> => {
+    const url = databaseUrl.trim()
+    if (!url) { await clearCloudConfig(); cloudLastError = undefined; cloudLast = undefined; send('cloud-changed'); return cloudStatus() }
+    if (!looksLikeDatabaseUrl(url)) throw new Error('That does not look like a Postgres connection string (postgresql://user:password@host/db)')
+    const prev = await readCloudConfig()
+    await writeCloudConfig({ databaseUrl: url })
+    if (prev && prev.databaseUrl !== url) await resetSyncState() // a different database: start over as a fresh device
+    return cloudSync()
+  })
+  ipcMain.handle('cloud:sync', () => cloudSync())
   ipcMain.handle('apple:list', () => appleNotesList())
   ipcMain.handle('apple:import', (_e, ids: string[]) => appleNotesImport(ids))
 
