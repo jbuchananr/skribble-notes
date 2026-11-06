@@ -5,7 +5,7 @@ import { NotesView } from './components/NotesView'
 import { FilesView } from './components/FilesView'
 import { ActionsView } from './components/ActionsView'
 import { ACTIONS_ENABLED } from '../../shared/features'
-import { PanelLeftOpen } from './components/Icons'
+import { PanelLeftOpen, PanelLeftClose } from './components/Icons'
 import { WikiChat } from './components/WikiChat'
 import { Editor } from './components/Editor'
 import { Absorb } from './components/Absorb'
@@ -161,6 +161,8 @@ export default function App() {
   const nav: Nav | null = mode.kind === 'notes' ? { kind: 'notes' } : mode.kind === 'files' ? { kind: 'files' } : mode.kind === 'actions' ? { kind: 'actions' } : mode.kind === 'wiki' ? { kind: 'wiki' } : mode.kind === 'settings' ? { kind: 'settings' } : mode.kind === 'page' ? { kind: 'page', slug: mode.slug } : mode.kind === 'absorb' ? { kind: 'notes' } : null
 
   const showSidebarBtn = <button className="icon-btn show-sidebar" onClick={toggleSidebar} title="Show sidebar (⌘\)"><PanelLeftOpen /></button>
+  // in the editor the toggle always sits just left of "Saved", open or closed
+  const sidebarToggle = collapsed ? showSidebarBtn : <button className="icon-btn show-sidebar" onClick={toggleSidebar} title="Hide sidebar (⌘\)"><PanelLeftClose /></button>
   let main: React.ReactNode = null
   if (mode.kind === 'absorb') {
     const node = graph.find((g) => g.id === mode.nodeId)
@@ -201,7 +203,8 @@ export default function App() {
           graph={graph}
           onChange={(patch) => updateNote(open.id, patch)}
           onDelete={() => deleteNote(open.id)}
-          leading={collapsed ? showSidebarBtn : undefined}
+          leading={sidebarToggle}
+          clearTrafficLights={collapsed}
           onAbsorb={(section) => {
             const node = graph.find((g) => g.noteId === open.id && (section ? g.section === section : g.level === 0))
             if (node) absorbNode(node, 'edit')
@@ -225,7 +228,7 @@ export default function App() {
 
   return (
     <div className={`shell ${collapsed ? 'collapsed' : ''}`}>
-      {!collapsed && <Sidebar nav={nav} notesCount={queue.length} actionsCount={actionsCount} pages={pages} wikiBusy={!!wikiStatus?.busy} onNav={navigate} onNew={createNote} onCollapse={toggleSidebar} />}
+      {!collapsed && <Sidebar nav={nav} notesCount={queue.length} actionsCount={actionsCount} pages={pages} wikiBusy={!!wikiStatus?.busy} onNav={navigate} onNew={createNote} onCollapse={mode.kind === 'edit' ? undefined : toggleSidebar} />}
       <main className="main">
         {collapsed && mode.kind !== 'edit' && <div className="collapsed-bar">{showSidebarBtn}</div>}
         <Fragment key={mode.kind === 'page' ? `page:${mode.slug}` : mode.kind === 'edit' ? `edit:${mode.id}` : mode.kind}>{main}</Fragment>

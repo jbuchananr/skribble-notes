@@ -90,11 +90,13 @@ interface Props {
   onAbsorb: (section?: string) => void
   /** shown before "Saved", e.g. the show-sidebar button when the sidebar is hidden */
   leading?: ReactNode
+  /** the sidebar is hidden, so the toolbar starts beside the window controls */
+  clearTrafficLights?: boolean
 }
 
 const SERIALIZE_DELAY = 300
 
-export function Editor({ note, saving, initialSection, graph, onChange, onDelete, onAbsorb, leading }: Props) {
+export function Editor({ note, saving, initialSection, graph, onChange, onDelete, onAbsorb, leading, clearTrafficLights }: Props) {
   const titleRef = useRef<HTMLTextAreaElement>(null)
   // last HTML we handed to the app; lets us tell our own saves from edits made on disk (MCP write, import, absorb)
   const lastHtml = useRef(note.content)
@@ -227,7 +229,7 @@ export function Editor({ note, saving, initialSection, graph, onChange, onDelete
 
   return (
     <div className="editor-pane">
-      <div className={`editor-toolbar ${leading ? 'has-lead' : ''}`}>
+      <div className={`editor-toolbar ${leading ? 'has-lead' : ''} ${clearTrafficLights ? 'clear-lights' : ''}`}>
         <div className="toolbar-start">{leading}<span className="saved">{saving ? 'Saving…' : 'Saved'}</span></div>
         {editor && (
           <div className="format-bar">

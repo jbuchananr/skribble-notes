@@ -13,7 +13,8 @@ interface Props {
   wikiBusy: boolean
   onNav: (n: Nav) => void
   onNew: () => void
-  onCollapse: () => void
+  /** absent while editing, where the toggle sits in the editor toolbar instead */
+  onCollapse?: () => void
 }
 
 const KIND_ORDER: WikiPage['kind'][] = ['person', 'project', 'decision', 'concept', 'topic']
@@ -26,7 +27,7 @@ export function Sidebar({ nav, notesCount, actionsCount, pages, wikiBusy, onNav,
       <div className="sidebar-drag" />
       <div className="sidebar-brand">
         <img className="logo" src={logo} alt="" /> <span>Skribble</span>
-        <button className="icon-btn sidebar-toggle" onClick={onCollapse} title="Hide sidebar (⌘\)"><PanelLeftClose /></button>
+        {onCollapse && <button className="icon-btn sidebar-toggle" onClick={onCollapse} title="Hide sidebar (⌘\)"><PanelLeftClose /></button>}
       </div>
       <nav className="side-nav">
         <button className={`side-item ${on('notes') ? 'on' : ''}`} onClick={() => onNav({ kind: 'notes' })}>
