@@ -4,6 +4,7 @@ import { Sidebar, type Nav } from './components/Sidebar'
 import { NotesView } from './components/NotesView'
 import { FilesView } from './components/FilesView'
 import { ActionsView } from './components/ActionsView'
+import { ACTIONS_ENABLED } from '../../shared/features'
 import { PanelLeftOpen } from './components/Icons'
 import { WikiChat } from './components/WikiChat'
 import { Editor } from './components/Editor'
@@ -46,7 +47,7 @@ export default function App() {
   const reload = useCallback(async () => {
     const [n, g] = await Promise.all([window.notes.listNotes(), window.notes.getGraph()])
     setNotes(n); setGraph(g)
-    window.notes.actions().then((a) => setActionsCount(a.items.filter((i) => !i.done).length)).catch(() => undefined)
+    if (ACTIONS_ENABLED) window.notes.actions().then((a) => setActionsCount(a.items.filter((i) => !i.done).length)).catch(() => undefined)
   }, [])
   const reloadWiki = useCallback(() => { window.notes.wikiPages().then(setPages); window.notes.wikiStatus().then(setWikiStatus) }, [])
 
@@ -135,7 +136,7 @@ export default function App() {
         case 'view-inbox': navigate({ kind: 'notes' }); break
         case 'view-brain': navigate({ kind: 'wiki' }); break
         case 'view-all': navigate({ kind: 'files' }); break
-        case 'view-actions': navigate({ kind: 'actions' }); break
+        case 'view-actions': if (ACTIONS_ENABLED) navigate({ kind: 'actions' }); break
         case 'toggle-sidebar': toggleSidebar(); break
         case 'import-apple': setImporting(true); break
         case 'settings': setSettings(true); break

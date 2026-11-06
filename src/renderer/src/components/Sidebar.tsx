@@ -1,6 +1,7 @@
 import type { WikiPage } from '../../../shared/types'
 import { FileText, BookOpen, Plus, Settings as SettingsIcon, RefreshCw, Files, PanelLeftClose, ListChecks } from './Icons'
 import logo from '../../../../assets/logo-mark.png'
+import { ACTIONS_ENABLED } from '../../../shared/features'
 
 export type Nav = { kind: 'notes' } | { kind: 'actions' } | { kind: 'files' } | { kind: 'wiki' } | { kind: 'page'; slug: string }
 
@@ -32,9 +33,11 @@ export function Sidebar({ nav, notesCount, actionsCount, pages, wikiBusy, onNav,
         <button className={`side-item ${on('notes') ? 'on' : ''}`} onClick={() => onNav({ kind: 'notes' })}>
           <FileText /> <span>Notes</span>{notesCount > 0 && <span className="side-n">{notesCount}</span>}
         </button>
-        <button className={`side-item ${on('actions') ? 'on' : ''}`} onClick={() => onNav({ kind: 'actions' })}>
-          <ListChecks /> <span>Actions</span>{actionsCount > 0 && <span className="side-n">{actionsCount}</span>}
-        </button>
+        {ACTIONS_ENABLED && (
+          <button className={`side-item ${on('actions') ? 'on' : ''}`} onClick={() => onNav({ kind: 'actions' })}>
+            <ListChecks /> <span>Actions</span>{actionsCount > 0 && <span className="side-n">{actionsCount}</span>}
+          </button>
+        )}
         <button className={`side-item ${on('files') ? 'on' : ''}`} onClick={() => onNav({ kind: 'files' })}>
           <Files /> <span>Files</span>
         </button>

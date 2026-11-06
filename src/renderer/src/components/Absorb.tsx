@@ -5,6 +5,7 @@ import { unitMarkdown } from '../../../core/sections'
 import { getAbsorbed } from '../../../core/absorb'
 import { label } from '../../../core/inbox'
 import { ArrowLeft, ChevronLeft, ChevronRight, Check, Link2, Hash, Lightbulb, Pencil, Sparkles, CornerDownLeft, Brain, Target } from './Icons'
+import { ACTIONS_ENABLED } from '../../../shared/features'
 
 interface Props {
   note: Note
@@ -120,10 +121,12 @@ export function Absorb({ note, node, graph, position, onBack, onEdit, onNav, onA
             {suggestion?.insightQuote && <div className="absorb-quote">You wrote: “{suggestion.insightQuote}”</div>}
           </section>
 
-          <section className="absorb-block">
-            <h3><Target /> A lesson for next time</h3>
-            <textarea rows={2} className="text-input absorb-insight" placeholder="Optional. Goes under Practicing in Actions. Lessons in what you wrote are picked up on their own." value={practice} onChange={(e) => setPractice(e.target.value)} />
-          </section>
+          {ACTIONS_ENABLED && (
+            <section className="absorb-block">
+              <h3><Target /> A lesson for next time</h3>
+              <textarea rows={2} className="text-input absorb-insight" placeholder="Optional. Goes under Practicing in Actions. Lessons in what you wrote are picked up on their own." value={practice} onChange={(e) => setPractice(e.target.value)} />
+            </section>
+          )}
 
           <section className="absorb-block">
             <h3><Link2 /> Connections {suggesting && <span className="absorb-spin" />}</h3>

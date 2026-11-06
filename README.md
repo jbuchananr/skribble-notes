@@ -18,7 +18,7 @@ To use the same notes on another machine, put `~/Notes` in a synced folder (or a
 ## The loop
 
 1. **Write.** One long note per stream (Meetings, Reflections, Thoughts). A section is an H1 or H2 heading through the next one, with the date in the heading (`Standup  10/13`). H3 headings are labels inside a section. A note with no headings is one unit. Each heading shows a quiet tag: *to absorb* or *absorbed Nov 5*.
-2. **Notes.** The left sidebar has four places: **Notes**, **Actions**, **Files** and **Wiki**; ⌘\ hides it. Notes is everything you have written and not yet sent to the wiki, newest first; click a section to edit it, or use its Absorb button to open the absorb screen. Files lists every note, absorbed or not. Every note and section has a copy button that copies it as markdown. Search there reaches every note, absorbed or not, so anything can be reopened for writing.
+2. **Notes.** The left sidebar has three places: **Notes**, **Files** and **Wiki**; ⌘\ hides it. Notes is everything you have written and not yet sent to the wiki, newest first; click a section to edit it, or use its Absorb button to open the absorb screen. Files lists every note, absorbed or not. Every note and section has a copy button that copies it as markdown. Search there reaches every note, absorbed or not, so anything can be reopened for writing.
 3. **Absorb.** Left, what you wrote. Right: the takeaway you type, the connections the agent found in your other notes (tap to keep or drop), tags, and one button. ⌘↩ absorbs and moves to the next one; ⌘J / ⌘K skip; Esc goes back. The record lands in the note's frontmatter; the body you wrote is never edited:
 
    ```yaml
@@ -30,7 +30,7 @@ To use the same notes on another machine, put `~/Notes` in a synced folder (or a
    ```
 
    The takeaway becomes a card in your **Insights** note (one `###` heading per card, linking back to the source), so each insight is its own node in the graph.
-4. **Act.** The **Actions** page is the step after capture and synthesis. It is one note the app keeps (`kind: actions` in its frontmatter), with four lists:
+4. **Act** (hidden for now; set `ACTIONS_ENABLED` in `src/shared/features.ts` to bring it back). The **Actions** page is the step after capture and synthesis. It is one note the app keeps (`kind: actions` in its frontmatter), with four lists:
    - *Practicing*: lessons you are applying to how you work, shown as cards to glance at before a meeting. They come from your reflections ("Takeaways for next time", "Next time:", "In the future I want to…") or from the "A lesson for next time" box when absorbing.
    - *To do*: tasks a section commits someone to, with the owner kept.
    - *Project changes*: decisions to change a project's scope or priority.
@@ -46,7 +46,7 @@ To use the same notes on another machine, put `~/Notes` in a synced folder (or a
 | New note | ⌘N |
 | Delete note | ⌘⌫ |
 | Search | ⌘F |
-| Notes / Wiki / Files / Actions | ⌘1 / ⌘2 / ⌘3 / ⌘4 |
+| Notes / Wiki / Files | ⌘1 / ⌘2 / ⌘3 |
 | Hide / show sidebar | ⌘\ |
 | Settings | ⌘, |
 | Back | ⌘[ or Esc |

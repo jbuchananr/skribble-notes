@@ -19,6 +19,7 @@ import { ingest, sourceRef } from '../core/ai/wiki'
 import { buildGraph as graphOf } from '../core/graph'
 import { isUnit } from '../core/inbox'
 import type { StoredNote } from '../core/store'
+import { ACTIONS_ENABLED } from '../shared/features'
 
 const run = promisify(execFile)
 
@@ -42,10 +43,10 @@ async function absorb(req: AbsorbRequest): Promise<Note> {
   const absorbed = setAbsorbed(n.absorbed, { section: req.section, date: today(), links: req.links, tags: req.tags })
   const saved = await store.writeStored({ ...n, absorbed, updatedAt: Date.now() })
   if (req.insight?.trim()) await addInsight({ text: req.insight, noteTitle: n.title || 'Untitled', section: req.section })
-  if (req.practice?.trim()) await actions.editActions({ op: 'add', list: 'practices', text: req.practice })
+  if (ACTIONS_ENABLED && req.practice?.trim()) await actions.editActions({ op: 'add', list: 'practices', text: req.practice })
   send('notes-changed')
   // the model writes the actions; do it in the background so absorbing never waits
-  readAiConfig().then((cfg) => actions.fileActionItems(saved, req.section, cfg, req.insight?.trim() || undefined))
+  if (ACTIONS_ENABLED) readAiConfig().then((cfg) => actions.fileActionItems(saved, req.section, cfg, req.insight?.trim() || undefined))
     .then((n) => { if (n) send('notes-changed') })
     .catch((e) => console.error('filing actions failed', e))
   // fold it into the wiki in the background; absorbing itself never waits on the model
@@ -250,7 +251,7 @@ function buildMenu() {
         { label: 'Notes', accelerator: 'CmdOrCtrl+1', click: () => send('menu', 'view-inbox') },
         { label: 'Wiki', accelerator: 'CmdOrCtrl+2', click: () => send('menu', 'view-brain') },
         { label: 'Files', accelerator: 'CmdOrCtrl+3', click: () => send('menu', 'view-all') },
-        { label: 'Actions', accelerator: 'CmdOrCtrl+4', click: () => send('menu', 'view-actions') },
+        ...(ACTIONS_ENABLED ? [{ label: 'Actions', accelerator: 'CmdOrCtrl+4', click: () => send('menu', 'view-actions') }] : []),
         { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+\\', click: () => send('menu', 'toggle-sidebar') },
         { label: 'Back to Notes', accelerator: 'CmdOrCtrl+[', click: () => send('menu', 'go-home') },
         { type: 'separator' },
@@ -272,7 +273,7 @@ app.whenReady().then(async () => {
   const migrated = await store.migrateMarkers()
   await wiki.ensureWiki()
   // file action items from anything absorbed before this existed (or by the MCP server while the app was closed)
-  readAiConfig().then((cfg) => actions.fileAllAbsorbed(cfg)).then((n) => { if (n) send('notes-changed') }).catch((e) => console.error('action items catch-up failed', e))
+  if (ACTIONS_ENABLED) readAiConfig().then((cfg) => actions.fileAllAbsorbed(cfg)).then((n) => { if (n) send('notes-changed') }).catch((e) => console.error('action items catch-up failed', e))
   // catch up on anything absorbed while no key was configured or the app was closed
   setTimeout(() => { wikiRebuild(false).catch((e) => console.error('wiki catch-up failed', e)) }, 3000)
   if (migrated) console.log(`moved absorb markers into frontmatter for ${migrated} note(s)`)
