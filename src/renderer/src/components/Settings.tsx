@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { AiStatus, WikiStatus } from '../../../shared/types'
-import { BookOpen, RefreshCw, Check, Pencil } from './Icons'
+import { BookOpen, Cloud, RefreshCw, Check, Pencil } from './Icons'
 import { autocorrectEnabled, setAutocorrectEnabled } from '@/lib/autocorrect'
 
 /** API key, model, wiki status. Everything else is in the files. */
@@ -50,6 +50,16 @@ export function Settings() {
             <span>Autocorrect spelling as you type</span>
           </label>
           <p className="hint">A misspelled word is fixed when you finish it. Backspace right after puts back what you typed. Names, acronyms and words you already use in your notes are left alone. Right-click a word underlined in red for suggestions or Learn Spelling.</p>
+        </section>
+
+        <section>
+          <h3><Cloud /> Cloud</h3>
+          <p className="hint">Not built yet. Everything lives on this Mac for now. To make notes and the wiki reachable from anywhere:</p>
+          <ul className="settings-todo">
+            <li>Sign-in with Clerk</li>
+            <li>Postgres for notes, the wiki and absorb history</li>
+            <li>Cloudflare R2 for files and attachments</li>
+          </ul>
         </section>
 
         <section>
